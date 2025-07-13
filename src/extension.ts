@@ -200,6 +200,80 @@ steps:
 
 	context.subscriptions.push(runPhsCommand);
 
+	// CodeLens provider for Phlow files
+	const phlowCodeLensProvider = vscode.languages.registerCodeLensProvider('phlow', {
+		provideCodeLenses(document, token) {
+			const codeLenses: vscode.CodeLens[] = [];
+			const text = document.getText();
+			const lines = text.split('\n');
+
+			// Find the best position for CodeLens (after name or main declaration)
+			let targetLine = 0;
+			for (let i = 0; i < lines.length && i < 10; i++) {
+				const line = lines[i].trim();
+				if (line.startsWith('name:') || line.startsWith('main:') || line.startsWith('version:')) {
+					targetLine = i;
+					break;
+				}
+			}
+
+			const range = new vscode.Range(targetLine, 0, targetLine, 0);
+
+			// Add "Run Flow" CodeLens
+			const runCommand: vscode.Command = {
+				title: "▶ Run Flow",
+				command: "phlow.runFlow",
+				arguments: [document.uri]
+			};
+			codeLenses.push(new vscode.CodeLens(range, runCommand));
+
+			// Add "Validate Flow" CodeLens
+			const validateCommand: vscode.Command = {
+				title: "✓ Validate",
+				command: "phlow.validateFlow",
+				arguments: [document.uri]
+			};
+			codeLenses.push(new vscode.CodeLens(range, validateCommand));
+
+			return codeLenses;
+		}
+	});
+
+	context.subscriptions.push(phlowCodeLensProvider);
+
+	// CodeLens provider for PHS files
+	const phsCodeLensProvider = vscode.languages.registerCodeLensProvider('phs', {
+		provideCodeLenses(document, token) {
+			const codeLenses: vscode.CodeLens[] = [];
+			const text = document.getText();
+			const lines = text.split('\n');
+
+			// Find function definitions or use line 0 if no functions found
+			let targetLine = 0;
+			for (let i = 0; i < lines.length && i < 20; i++) {
+				const line = lines[i].trim();
+				if (line.startsWith('fn ') || line.startsWith('let ') || line.startsWith('const ')) {
+					targetLine = i;
+					break;
+				}
+			}
+
+			const range = new vscode.Range(targetLine, 0, targetLine, 0);
+
+			// Add "Run Script" CodeLens
+			const runCommand: vscode.Command = {
+				title: "▶ Run PHS Script",
+				command: "phs.runScript",
+				arguments: [document.uri]
+			};
+			codeLenses.push(new vscode.CodeLens(range, runCommand));
+
+			return codeLenses;
+		}
+	});
+
+	context.subscriptions.push(phsCodeLensProvider);
+
 	// Activate specific features for .phlow files
 	const phlowDocumentSelector = { scheme: 'file', language: 'phlow' };
 
