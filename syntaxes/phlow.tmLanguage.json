@@ -1,0 +1,102 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Phlow",
+    "scopeName": "source.yaml.phlow",
+    "patterns": [
+        {
+            "include": "source.yaml"
+        },
+        {
+            "include": "#phlow-directives"
+        },
+        {
+            "include": "#phlow-keywords"
+        },
+        {
+            "include": "#phlow-modules"
+        }
+    ],
+    "repository": {
+        "phlow-directives": {
+            "patterns": [
+                {
+                    "name": "meta.directive.phs.phlow",
+                    "begin": "(!phs)\\s+",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "keyword.directive.phs.phlow"
+                        }
+                    },
+                    "end": "$",
+                    "patterns": [
+                        {
+                            "include": "source.phs"
+                        }
+                    ]
+                },
+                {
+                    "name": "meta.directive.phs.block.phlow",
+                    "begin": "(!phs)\\s+(`)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "keyword.directive.phs.phlow"
+                        },
+                        "2": {
+                            "name": "string.quoted.backtick.phs"
+                        }
+                    },
+                    "end": "`",
+                    "endCaptures": {
+                        "0": {
+                            "name": "string.quoted.backtick.phs"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "source.phs"
+                        }
+                    ]
+                },
+                {
+                    "name": "keyword.directive.include.phlow",
+                    "match": "!include\\b",
+                    "captures": {
+                        "0": {
+                            "name": "keyword.directive.phlow"
+                        }
+                    }
+                },
+                {
+                    "name": "keyword.directive.import.phlow",
+                    "match": "!import\\b",
+                    "captures": {
+                        "0": {
+                            "name": "keyword.directive.phlow"
+                        }
+                    }
+                }
+            ]
+        },
+        "phlow-keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.phlow",
+                    "match": "\\b(main|modules|steps|assert|then|else|return|payload|use|to|label|id|with|input|output):\\s*",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.tag.yaml"
+                        }
+                    }
+                }
+            ]
+        },
+        "phlow-modules": {
+            "patterns": [
+                {
+                    "name": "string.unquoted.phlow-module.yaml",
+                    "match": "\\b(cli|postgres|log|http_server|producer|consumer|amqp)\\b"
+                }
+            ]
+        }
+    }
+}

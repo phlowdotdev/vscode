@@ -1,0 +1,11 @@
+name: Flow Simples
+version: 1.0.0
+description: Exemplo de flow simples sem módulos externos
+author: Phlow Team
+
+steps:
+  - payload:
+      message: "Olá, mundo!"
+      timestamp: !phs `new Date().toISOString()`
+  - payload: !phs `${payload.message} - Processado em ${payload.timestamp}`
+  - return: !phs payload

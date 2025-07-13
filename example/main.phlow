@@ -1,0 +1,59 @@
+# Complete Phlow Flow example with all features
+main: cli
+name: Complete Phlow Example
+version: 1.0.0
+description: Demonstrates the main features of Phlow
+author: Phlow Team
+tags:
+  - example
+  - cli
+  - demo
+
+# Required modules for this flow
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      args: 
+        - name: name
+          description: Person's name
+          index: 1
+          type: string
+          required: true
+        - name: age
+          description: Person's age
+          index: 2
+          type: number
+          required: true
+        - name: force
+          long: force
+          short: f
+          description: Force execution even with invalid age
+          type: boolean
+          default: false
+
+# Flow execution sequence
+steps:
+  # Step 1: Input validation with force
+  - assert: !phs main.force
+    then:
+      return: !phs `${main.name} is considered a student (forced), but age ${main.age} may not be valid`
+    else:
+      # Step 2: Age validation for student
+      - assert: !phs main.age >= 3 && main.age <= 25
+        then:
+          # Nested steps for more complex logic
+          steps:
+            - payload:
+                student_name: !phs main.name
+                student_age: !phs main.age
+                category: !phs main.age <= 12 ? 'child' : main.age <= 18 ? 'teenager' : 'young adult'
+            - return: !phs `${payload.student_name} (${payload.student_age} years old) is a student in category: ${payload.category}`
+        else:
+          # Step 3: Baby verification
+          - assert: !phs main.age <= 3
+            then:
+              return: !phs `${main.name} is a baby (${main.age} years old)`
+            else:
+              return: !phs `${main.name} (${main.age} years old) is not a student - age outside valid range`

@@ -1,0 +1,18 @@
+{
+    "iconDefinitions": {
+        "_phlow_file": {
+            "iconPath": "./phlow.png"
+        },
+        "_phs_file": {
+            "iconPath": "./phlow.png"
+        }
+    },
+    "fileExtensions": {
+        "phlow": "_phlow_file",
+        "phs": "_phs_file"
+    },
+    "fileNames": {},
+    "folderNames": {},
+    "folderNamesExpanded": {},
+    "hidesExplorerArrows": false
+}

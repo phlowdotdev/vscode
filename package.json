@@ -1,0 +1,169 @@
+{
+  "name": "phlow",
+  "displayName": "Phlow Language Support",
+  "description": "Language support for Phlow - Low Code Rust runtime for modular backends",
+  "version": "0.0.1",
+  "publisher": "phlow",
+  "icon": "icons/phlow.png",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "phlow",
+    "yaml",
+    "workflow",
+    "rust",
+    "backend",
+    "low-code"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "phlow",
+        "aliases": [
+          "Phlow",
+          "phlow"
+        ],
+        "extensions": [
+          ".phlow"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/phlow.png",
+          "dark": "./icons/phlow.png"
+        }
+      },
+      {
+        "id": "phs",
+        "aliases": [
+          "Phlow Script",
+          "PHS"
+        ],
+        "extensions": [
+          ".phs"
+        ],
+        "configuration": "./phs-configuration.json",
+        "icon": {
+          "light": "./icons/phlow.png",
+          "dark": "./icons/phlow.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "phlow",
+        "scopeName": "source.yaml.phlow",
+        "path": "./syntaxes/phlow.tmLanguage.json"
+      },
+      {
+        "language": "phs",
+        "scopeName": "source.phs",
+        "path": "./syntaxes/phs.tmLanguage.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "*.phlow",
+        "url": "./schemas/phlow-schema.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "phlow",
+        "path": "./snippets/phlow.json"
+      },
+      {
+        "language": "yaml",
+        "path": "./snippets/phlow-yaml.json"
+      },
+      {
+        "language": "phs",
+        "path": "./snippets/phs.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "phlow.runFlow",
+        "title": "Run Phlow Flow",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.validateFlow",
+        "title": "Validate Phlow Flow",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.createNewFlow",
+        "title": "Create New Phlow Flow",
+        "category": "Phlow"
+      },
+      {
+        "command": "phs.runScript",
+        "title": "Run PHS Script",
+        "category": "PHS"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.runFlow",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phs",
+          "command": "phs.runScript",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.runFlow",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.validateFlow",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phs",
+          "command": "phs.runScript",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.102.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  },
+  "dependencies": {
+    "yaml": "^2.3.4"
+  }
+}

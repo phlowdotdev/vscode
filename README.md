@@ -1,82 +1,82 @@
 # Phlow Language Support
 
-Uma extensão completa do VS Code para a linguagem [Phlow](https://phlow.dev) - o runtime de baixo código em Rust para backends modulares.
+A complete VS Code extension for the [Phlow](https://phlow.dev) language - the low-code Rust runtime for modular backends.
 
-## Funcionalidades
+## Features
 
-### 🎨 Compatibilidade Total com YAML
-- **Arquivos `.phlow` se comportam exatamente como YAML**
-- Syntax highlighting completo para YAML
-- Indentação automática e inteligente
-- Folding de blocos e estruturas
-- Validação de sintaxe YAML em tempo real
-- Suporte a todos os tipos de dados YAML (strings, números, booleanos, arrays, objetos)
-- Strings multi-linha (`|` e `>`)
-- Comentários e estruturas aninhadas
+### 🎨 Full YAML Compatibility
+- **`.phlow` files behave exactly like YAML**
+- Complete syntax highlighting for YAML
+- Automatic and intelligent indentation
+- Block and structure folding
+- Real-time YAML syntax validation
+- Support for all YAML data types (strings, numbers, booleans, arrays, objects)
+- Multi-line strings (`|` and `>`)
+- Comments and nested structures
 
-### ✨ Suporte Completo para PHS (Phlow Script)
-- **Arquivos `.phs` com syntax highlighting completo** (baseado em Rhai)
-- **PHS inline em arquivos `.phlow` e `.yaml`** após diretivas `!phs`
-- **Autocomplete e snippets** para sintaxe Rhai/PHS
-- **Hover documentation** para funções e variáveis PHS
-- **Indentação automática** e **folding** para blocos de código
-- **Funções específicas do Phlow**: `main`, `payload`, `steps`, `envs`
+### ✨ Complete PHS (Phlow Script) Support
+- **`.phs` files with complete syntax highlighting** (based on Rhai)
+- **Inline PHS in `.phlow` and `.yaml` files** after `!phs` directives
+- **Autocomplete and snippets** for Rhai/PHS syntax
+- **Hover documentation** for PHS functions and variables
+- **Automatic indentation** and **folding** for code blocks
+- **Phlow-specific functions**: `main`, `payload`, `steps`, `envs`
 
-### ✨ Funcionalidades Específicas do Phlow
-- Destaque especial para palavras-chave do Phlow (`main`, `modules`, `steps`, etc.)
-- Reconhecimento de diretivas especiais (`!phs`, `!include`, `!import`)
-- Destaque para módulos conhecidos (cli, postgres, log, http_server)
-- Validação de schema específica para flows Phlow
+### ✨ Phlow-Specific Features
+- Special highlighting for Phlow keywords (`main`, `modules`, `steps`, etc.)
+- Recognition of special directives (`!phs`, `!include`, `!import`)
+- Highlighting for known modules (cli, postgres, log, http_server)
+- Phlow-specific schema validation for flows
 
-### 📝 Snippets Inteligentes
-- **phlow-basic**: Estrutura básica de flow com CLI
-- **phlow-simple**: Flow simples sem módulos
-- **phlow-cli-module**: Configuração de módulo CLI
-- **phlow-step-assert**: Step com lógica condicional
-- **phlow-step-use**: Step usando módulos
-- **phs**: Expressões Phlow Script
-- E muito mais...
+### 📝 Smart Snippets
+- **phlow-basic**: Basic flow structure with CLI
+- **phlow-simple**: Simple flow without modules
+- **phlow-cli-module**: CLI module configuration
+- **phlow-step-assert**: Step with conditional logic
+- **phlow-step-use**: Step using modules
+- **phs**: Phlow Script expressions
+- And much more...
 
-### 🔧 Comandos
-- **Run Phlow Flow**: Executa o flow atual no terminal
-- **Validate Phlow Flow**: Valida a sintaxe e estrutura do flow
-- **Create New Phlow Flow**: Assistente para criar novos flows
+### 🔧 Commands
+- **Run Phlow Flow**: Execute the current flow in terminal
+- **Validate Phlow Flow**: Validate flow syntax and structure
+- **Create New Phlow Flow**: Wizard to create new flows
 
 ### 💡 IntelliSense
-- Hover para documentação de elementos Phlow
-- Validação de schema JSON
-- Autocomplete inteligente
+- Hover for Phlow element documentation
+- JSON schema validation
+- Intelligent autocomplete
 
-## Instalação
+## Installation
 
-1. Abra o VS Code
-2. Vá para a aba de Extensões (Ctrl+Shift+X)
-3. Procure por "Phlow Language Support"
-4. Clique em "Install"
+1. Open VS Code
+2. Go to Extensions tab (Ctrl+Shift+X)
+3. Search for "Phlow Language Support"
+4. Click "Install"
 
-## Uso Rápido
+## Quick Start
 
-### Criando um novo flow
+### Creating a new flow
 
-1. Use o comando `Ctrl+Shift+P` e digite "Create New Phlow Flow"
-2. Escolha o tipo de flow desejado
-3. Digite o nome do flow
-4. O arquivo será criado automaticamente com um template
+1. Use the command `Ctrl+Shift+P` and type "Create New Phlow Flow"
+2. Choose the desired flow type
+3. Enter the flow name
+4. The file will be created automatically with a template
 
-### Executando um flow
+### Running a flow
 
-1. Abra um arquivo `.phlow`
-2. Clique com o botão direito e selecione "Run Phlow Flow"
-3. Ou use `Ctrl+Shift+P` e digite "Run Phlow Flow"
+1. Open a `.phlow` file
+2. Right-click and select "Run Phlow Flow"
+3. Or use `Ctrl+Shift+P` and type "Run Phlow Flow"
 
-## Exemplos de Uso
+## Usage Examples
 
-### Flow Básico com CLI
+### Basic CLI Flow
 ```yaml
 main: cli
 name: Hello Phlow
 version: 1.0.0
-description: Meu primeiro flow
+description: My first flow
 modules:
   - module: cli
     version: latest
@@ -84,94 +84,122 @@ modules:
       additional_args: false
       args:
         - name: name
-          description: Nome do usuário
+          description: User name
           index: 1
           type: string
           required: true
 steps:
   - payload:
       greeting: !phs main.name
-  - return: !phs `Olá, ${payload.greeting}!`
+  - return: !phs `Hello, ${payload.greeting}!`
 ```
 
-### Flow com HTTP Server
+### Flow with Inline PHS
 ```yaml
-main: http_server
-name: API Mirror
-version: 1.0.0
+main: cli
+name: PHS Demo
 modules:
-  - module: http_server
+  - module: cli
     version: latest
+    with:
+      args:
+        - name: name
+          type: string
+          required: true
 steps:
-  - return:
-      status_code: 200
-      body: !phs main
-      headers:
-        Content-Type: application/json
+  # Inline PHS with complete syntax highlighting
+  - payload: !phs `{
+      user_name: main.name,
+      processed_at: timestamp(),
+      greeting: if main.name.len() > 0 {
+        "Hello, " + main.name + "!"
+      } else {
+        "Hello, World!"
+      }
+    }`
+  - return: !phs payload.greeting
 ```
 
-## Tipos de Flow Suportados
+### Standalone PHS File
+```rust
+// script.phs - Complete support for Rhai syntax
+fn process_data(input) {
+    let result = #{
+        original: input,
+        processed: input.to_upper(),
+        length: input.len()
+    };
+    
+    log("info", `Processed: ${input}`);
+    return result;
+}
 
-- **CLI Flows**: Aplicações de linha de comando
-- **HTTP Flows**: Servidores web e APIs
-- **Database Flows**: Integração com PostgreSQL
-- **Simple Flows**: Processamento de dados sem módulos externos
+// Access to Phlow context
+let user_data = main.user_name;
+process_data(user_data)
+```
 
-## Diretivas Especiais
+## Supported Flow Types
+
+- **CLI Flows**: Command-line applications
+- **HTTP Flows**: Web servers and APIs
+- **Database Flows**: PostgreSQL integration
+- **Simple Flows**: Data processing without external modules
+
+## Special Directives
 
 ### `!phs` - Phlow Script
-Execute código dinâmico inline:
+Execute dynamic inline code:
 ```yaml
 message: !phs `Hello, ${main.name}!`
 condition: !phs main.age > 18
 ```
 
-### `!include` - Incluir Arquivos
-Inclua conteúdo de outros arquivos YAML:
+### `!include` - Include Files
+Include content from other YAML files:
 ```yaml
 modules: !include modules.yaml
 ```
 
-### `!import` - Importar Scripts
-Importe e execute scripts PHS:
+### `!import` - Import Scripts
+Import and execute PHS scripts:
 ```yaml
 result: !import scripts/calculation.phs
 ```
 
-## Configuração
+## Configuration
 
-A extensão funciona automaticamente com arquivos `.phlow`, que são tratados como **YAML completo** com funcionalidades específicas do Phlow. Isso significa que você tem:
+The extension works automatically with `.phlow` files, which are treated as **complete YAML** with Phlow-specific features. This means you get:
 
-- ✅ **Toda a funcionalidade YAML**: indentação, folding, syntax highlighting
-- ✅ **Funcionalidades específicas do Phlow**: palavras-chave, diretivas, validação
-- ✅ **Compatibilidade total**: arquivos `.phlow` são válidos como YAML
+- ✅ **All YAML functionality**: indentation, folding, syntax highlighting
+- ✅ **Phlow-specific features**: keywords, directives, validation
+- ✅ **Complete compatibility**: `.phlow` files are valid YAML
 
-Para melhor experiência:
+For the best experience:
 
-1. Instale o Phlow runtime: [Documentação oficial](https://phlow.dev/docs/intro)
-2. Configure suas variáveis de ambiente no VS Code
-3. Use o terminal integrado para executar os flows
+1. Install the Phlow runtime: [Official Documentation](https://phlow.dev/docs/intro)
+2. Configure your environment variables in VS Code
+3. Use the integrated terminal to run flows
 
-## Contribuindo
+## Contributing
 
-Contribuições são bem-vindas! Este projeto está em desenvolvimento ativo.
+Contributions are welcome! This project is in active development.
 
-1. Fork o repositório
-2. Crie uma branch para sua feature
-3. Faça suas alterações
-4. Abra um Pull Request
+1. Fork the repository
+2. Create a branch for your feature
+3. Make your changes
+4. Open a Pull Request
 
-## Links Úteis
+## Useful Links
 
-- [Documentação do Phlow](https://phlow.dev/docs/intro)
-- [GitHub do Phlow](https://github.com/phlowdotdev/phlow)
-- [Exemplos de Flows](https://github.com/phlowdotdev/phlow/tree/main/examples)
+- [Phlow Documentation](https://phlow.dev/docs/intro)
+- [Phlow GitHub](https://github.com/phlowdotdev/phlow)
+- [Flow Examples](https://github.com/phlowdotdev/phlow/tree/main/examples)
 
-## Licença
+## License
 
 MIT
 
 ---
 
-Feito com ❤️ para a comunidade Phlow
-# vscode
+Made with ❤️ for the Phlow community

@@ -1,0 +1,92 @@
+// Exemplo de arquivo PHS (Phlow Script)
+// PHS é baseado na linguagem Rhai com funcionalidades específicas do Phlow
+
+// Variáveis e constantes
+let message = "Hello from PHS!";
+const PI = 3.14159;
+
+// Função simples
+fn greet(name) {
+    return `Hello, ${name}!`;
+}
+
+// Função que usa contexto Phlow
+fn process_user_data() {
+    // Acesso ao contexto principal
+    let user_name = main.name;
+    let user_age = main.age;
+    
+    // Processamento
+    if user_age >= 18 {
+        return `${user_name} is an adult (${user_age} years old)`;
+    } else {
+        return `${user_name} is a minor (${user_age} years old)`;
+    }
+}
+
+// Função com logging
+fn log_process(step_name, data) {
+    log("info", `Starting ${step_name}`);
+    debug(data);
+    log("info", `Completed ${step_name}`);
+    return data;
+}
+
+// Arrays e objetos
+let users = ["Alice", "Bob", "Charlie"];
+let config = #{
+    timeout: 30,
+    retries: 3,
+    debug: true
+};
+
+// Loop e condicionais
+for user in users {
+    print(`Processing user: ${user}`);
+    
+    if user == "Alice" {
+        log("debug", "Special handling for Alice");
+    }
+}
+
+// Processamento com payload anterior
+if payload != null {
+    let result = #{
+        original: payload,
+        processed_at: timestamp(),
+        processed_by: "phs_script"
+    };
+    
+    return result;
+} else {
+    return "No payload received";
+}
+
+// Acesso a variáveis de ambiente
+let db_host = envs.DATABASE_HOST ?? "localhost";
+let db_port = envs.DATABASE_PORT ?? 5432;
+
+print(`Connecting to database at ${db_host}:${db_port}`);
+
+// Função principal de execução
+fn main_execution() {
+    let start_time = timestamp();
+    
+    // Processar dados
+    let result = process_user_data();
+    
+    // Log resultado
+    log_process("user_processing", result);
+    
+    let end_time = timestamp();
+    let duration = end_time - start_time;
+    
+    return #{
+        result: result,
+        duration: duration,
+        timestamp: end_time
+    };
+}
+
+// Chamar função principal
+main_execution()

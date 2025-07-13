@@ -1,0 +1,104 @@
+# Demonstração de PHS inline em arquivos Phlow
+main: cli
+name: PHS Inline Demo
+version: 1.0.0
+description: Demonstra syntax highlighting de PHS inline em flows
+author: Phlow Team
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      args:
+        - name: name
+          description: Nome do usuário
+          type: string
+          required: true
+        - name: age
+          description: Idade do usuário
+          type: number
+          required: true
+
+steps:
+  # Step 1: Processamento inicial com PHS inline
+  - payload: !phs `{
+      user_name: main.name,
+      user_age: main.age,
+      processed_at: timestamp(),
+      is_adult: main.age >= 18
+    }`
+  
+  # Step 2: Validação condicional com PHS
+  - assert: !phs payload.user_age > 0 && payload.user_name.len() > 0
+    then:
+      # PHS inline com função
+      payload: !phs `{
+        message: if payload.is_adult {
+          "User " + payload.user_name + " is an adult"
+        } else {
+          "User " + payload.user_name + " is a minor"
+        },
+        category: if payload.user_age < 13 {
+          "child"
+        } else if payload.user_age < 18 {
+          "teenager"
+        } else {
+          "adult"
+        }
+      }`
+    else:
+      return: !phs "Invalid user data provided"
+  
+  # Step 3: PHS com template string complexo
+  - payload: !phs `{
+      final_message: \`Hello \${payload.message}! 
+      You are categorized as: \${payload.category}.
+      Processed at: \${payload.processed_at}\`,
+      metadata: {
+        total_chars: payload.message.len(),
+        uppercase_name: payload.user_name.to_upper()
+      }
+    }`
+  
+  # Step 4: Script PHS importado de arquivo externo
+  - payload: !import script.phs
+  
+  # Step 5: PHS com loop e array
+  - payload: !phs `{
+      tags: ["user", "processed", payload.category],
+      summary: {
+        name: payload.user_name,
+        age: payload.user_age,
+        tags_count: 3,
+        all_tags: {
+          let result = "";
+          for tag in ["user", "processed", payload.category] {
+            result += tag + " ";
+          }
+          result.trim()
+        }
+      }
+    }`
+  
+  # Step 6: Retorno final com PHS
+  - return: !phs `{
+      status: "success",
+      data: payload,
+      message: \`Processing completed for \${payload.user_name}\`
+    }`
+
+# Exemplo de PHS em bloco multi-linha
+configuration: !phs `
+  let config = #{
+    max_retries: 3,
+    timeout: 30,
+    debug: envs.DEBUG ?? false
+  };
+  
+  if envs.ENVIRONMENT == "production" {
+    config.debug = false;
+    config.timeout = 60;
+  }
+  
+  config
+`

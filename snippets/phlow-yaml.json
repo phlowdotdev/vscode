@@ -1,0 +1,44 @@
+{
+    "Phlow Modules Include": {
+        "prefix": "modules-include",
+        "body": [
+            "modules: !include modules.yaml"
+        ],
+        "description": "Include modules from external file"
+    },
+    "Phlow Main Structure": {
+        "prefix": "phlow-main",
+        "body": [
+            "main: ${1:cli}",
+            "name: ${2:Flow Name}",
+            "version: ${3:1.0.0}",
+            "description: ${4:Flow description}",
+            "author: ${5:Your Name}",
+            "modules: !include modules.yaml",
+            "steps:",
+            "  - ${6:first_step}"
+        ],
+        "description": "Main Phlow flow structure for YAML files"
+    },
+    "PHS Expression": {
+        "prefix": "phs-expr",
+        "body": [
+            "!phs ${1:expression}"
+        ],
+        "description": "Phlow Script expression in YAML"
+    },
+    "PHS Template String": {
+        "prefix": "phs-template",
+        "body": [
+            "!phs `${1:template_string}`"
+        ],
+        "description": "Phlow Script template string"
+    },
+    "Phlow Variable Reference": {
+        "prefix": "phs-var",
+        "body": [
+            "!phs ${1|main,payload,steps,envs|}.${2:property}"
+        ],
+        "description": "Reference to Phlow variables"
+    }
+}

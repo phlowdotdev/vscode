@@ -1,0 +1,225 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Phlow Flow Schema",
+    "description": "Schema for Phlow flow files",
+    "type": "object",
+    "properties": {
+        "main": {
+            "type": "string",
+            "description": "Main module name (optional)",
+            "examples": [
+                "cli",
+                "http_server",
+                "consumer"
+            ]
+        },
+        "name": {
+            "type": "string",
+            "description": "Flow name",
+            "minLength": 1
+        },
+        "version": {
+            "type": "string",
+            "description": "Flow version (semantic versioning)",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "description": {
+            "type": "string",
+            "description": "Flow description"
+        },
+        "author": {
+            "type": "string",
+            "description": "Flow author"
+        },
+        "tags": {
+            "type": "array",
+            "description": "Flow tags",
+            "items": {
+                "type": "string"
+            }
+        },
+        "modules": {
+            "oneOf": [
+                {
+                    "type": "array",
+                    "description": "List of modules",
+                    "items": {
+                        "$ref": "#/definitions/module"
+                    }
+                },
+                {
+                    "type": "string",
+                    "description": "Include directive for modules",
+                    "pattern": "^!include\\s+.+$"
+                }
+            ]
+        },
+        "steps": {
+            "type": "array",
+            "description": "Flow execution steps",
+            "items": {
+                "$ref": "#/definitions/step"
+            },
+            "minItems": 1
+        }
+    },
+    "required": [
+        "steps"
+    ],
+    "additionalProperties": true,
+    "definitions": {
+        "module": {
+            "type": "object",
+            "properties": {
+                "module": {
+                    "type": "string",
+                    "description": "Module name",
+                    "examples": [
+                        "cli",
+                        "postgres",
+                        "log",
+                        "http_server",
+                        "producer",
+                        "consumer"
+                    ]
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Module version",
+                    "default": "latest"
+                },
+                "with": {
+                    "type": "object",
+                    "description": "Module configuration",
+                    "additionalProperties": true
+                }
+            },
+            "required": [
+                "module"
+            ],
+            "additionalProperties": false
+        },
+        "step": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Step identifier"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Step label for tracing"
+                },
+                "assert": {
+                    "description": "Condition to evaluate",
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "then": {
+                    "description": "Action if assertion is true",
+                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/step"
+                        },
+                        {
+                            "$ref": "#/definitions/stepList"
+                        }
+                    ]
+                },
+                "else": {
+                    "description": "Action if assertion is false",
+                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/step"
+                        },
+                        {
+                            "$ref": "#/definitions/stepList"
+                        }
+                    ]
+                },
+                "payload": {
+                    "description": "Data to pass to next step",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "object"
+                        },
+                        {
+                            "type": "array"
+                        },
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "return": {
+                    "description": "Return value",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "object"
+                        },
+                        {
+                            "type": "array"
+                        },
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "use": {
+                    "type": "string",
+                    "description": "Module to use in this step"
+                },
+                "input": {
+                    "type": "object",
+                    "description": "Input parameters for module",
+                    "additionalProperties": true
+                },
+                "to": {
+                    "type": "string",
+                    "description": "Next step ID"
+                },
+                "steps": {
+                    "type": "array",
+                    "description": "Nested steps",
+                    "items": {
+                        "$ref": "#/definitions/step"
+                    }
+                }
+            },
+            "additionalProperties": false
+        },
+        "stepList": {
+            "type": "object",
+            "properties": {
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/step"
+                    }
+                }
+            },
+            "required": [
+                "steps"
+            ],
+            "additionalProperties": false
+        }
+    }
+}

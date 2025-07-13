@@ -1,0 +1,23 @@
+main: http_server
+name: API Echo
+version: 1.0.0
+description: Servidor HTTP que ecoa requisições
+author: Phlow Team
+
+modules:
+  - module: http_server
+    version: latest
+    with:
+      port: 8080
+      host: localhost
+
+steps:
+  - payload:
+      request_info: !phs main
+      processed_at: !phs `new Date().toISOString()`
+  - return:
+      status_code: 200
+      body: !phs payload
+      headers:
+        Content-Type: application/json
+        X-Processed-By: Phlow
