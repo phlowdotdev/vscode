@@ -1,0 +1,42 @@
+main: cli
+name: Test Module Validation
+version: 1.0.0
+description: Testing module validation and autocompletion
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      args:
+        - name: input
+          type: string
+          required: true
+          index: 1
+  
+  - module: http_request
+    version: latest
+    with:
+      timeout: 30
+      verify_ssl: true
+  
+  - module: postgres
+    version: latest
+    with:
+      host: localhost
+      port: 5432
+      user: user
+      password: pass
+      database: mydb
+
+steps:
+  - payload:
+      message: !phs main.input
+  - use: http_request
+    input:
+      method: GET
+      url: "https://api.example.com/data"
+  - use: postgres
+    input:
+      query: "SELECT * FROM users"
+  - return: !phs payload

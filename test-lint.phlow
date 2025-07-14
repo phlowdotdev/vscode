@@ -1,0 +1,35 @@
+main: cli
+name: Test Lint Validation
+version: 1.0.0
+description: Testing property validation with invalid configs
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      invalid_property: "this should show error"
+      another_invalid: 123
+      args:
+        - name: input
+          description: Input parameter
+          type: string
+          required: true
+          index: 1
+  
+  - module: http_request
+    version: latest
+    with:
+      timeout: 30
+      verify_ssl: true
+      wrong_config: "error here"
+      bad_property: false
+  
+  - module: unknown_module
+    version: latest
+    with:
+      any_prop: value
+
+steps:
+  - payload: "Hello World"
+  - return: !phs payload

@@ -1,0 +1,19 @@
+main: cli
+name: Test Invalid Module
+version: 1.0.0
+
+modules:
+  - module: invalid_module
+    version: latest
+    with:
+      some_property: value
+  
+  - module: cli
+    version: latest
+    with:
+      args:
+        - name: test
+          type: string
+
+steps:
+  - return: "Testing validation"

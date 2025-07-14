@@ -108,6 +108,11 @@
         "category": "Phlow"
       },
       {
+        "command": "phlow.testModuleSchema",
+        "title": "Test Module Schema (Debug)",
+        "category": "Phlow"
+      },
+      {
         "command": "phs.runScript",
         "title": "Run PHS Script",
         "category": "PHS"

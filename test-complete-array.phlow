@@ -1,0 +1,23 @@
+main: cli
+name: Complete CLI Array Test
+version: 1.0.0
+
+modules:
+  - module: cli
+    with:
+      additional_args: false
+      args:
+        - long: input
+          help: Input file
+          type: string
+          required: true
+          index: 1
+        - long: verbose
+          short: v
+          help: Enable verbose mode
+          type: boolean
+          default: false
+          invalid_property: "this should error"
+
+steps:
+  - return: "done"

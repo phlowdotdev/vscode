@@ -37,9 +37,17 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - **phs**: Phlow Script expressions
 - And much more...
 
+### ✨ Enhanced Module Support
+- **Real-time module validation** - Validates known modules from the Phlow repository
+- **Smart autocompletion** for module properties based on their schemas
+- **Enhanced hover documentation** with module-specific information and links
+- **Dynamic schema fetching** from GitHub repository for up-to-date module information
+- **Property validation** for module `with` configurations
+- **Required property detection** and warnings
+
 ### 🔧 Commands
 - **Run Phlow Flow**: Execute the current flow in terminal
-- **Validate Phlow Flow**: Validate flow syntax and structure
+- **Validate Phlow Flow**: Comprehensive validation with detailed error reporting
 - **Create New Phlow Flow**: Wizard to create new flows
 
 ### 💡 IntelliSense

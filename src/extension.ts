@@ -1,6 +1,139 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as https from 'https';
+import * as yaml from 'yaml';
+
+// Module schema cache
+interface ModuleSchema {
+	name: string;
+	description: string;
+	version: string;
+	type: string;
+	with?: {
+		type: string;
+		required: boolean;
+		properties: { [key: string]: any };
+	};
+	input?: {
+		type: string;
+		required: boolean;
+		properties: { [key: string]: any };
+	};
+	output?: {
+		type: string;
+		required: boolean;
+		properties: { [key: string]: any };
+	};
+}
+
+const moduleSchemaCache = new Map<string, ModuleSchema>();
+
+// Known modules from Phlow repository
+const KNOWN_MODULES = [
+	'cli', 'amqp', 'http_request', 'http_server', 'postgres', 'log',
+	'consumer', 'producer', 'file', 'redis', 'mongodb', 'smtp',
+	'jwt', 'crypto', 'template', 'validator'
+];
+
+async function fetchModuleSchema(moduleName: string): Promise<ModuleSchema | null> {
+	if (moduleSchemaCache.has(moduleName)) {
+		return moduleSchemaCache.get(moduleName)!;
+	}
+
+	try {
+		const url = `https://raw.githubusercontent.com/phlowdotdev/phlow/refs/heads/main/modules/${moduleName}/phlow.yaml`;
+
+		return new Promise((resolve, reject) => {
+			https.get(url, (res) => {
+				let data = '';
+				res.on('data', (chunk) => data += chunk);
+				res.on('end', () => {
+					try {
+						// Simple YAML parser for the schema (could use a proper YAML library)
+						const schema = parseModuleYaml(data);
+						if (schema) {
+							moduleSchemaCache.set(moduleName, schema);
+							resolve(schema);
+						} else {
+							resolve(null);
+						}
+					} catch (error) {
+						resolve(null);
+					}
+				});
+			}).on('error', () => resolve(null));
+		});
+	} catch (error) {
+		return null;
+	}
+}
+
+function parseModuleYaml(yamlContent: string): ModuleSchema | null {
+	try {
+		// Parse using the YAML library
+		const parsedYaml = yaml.parse(yamlContent);
+
+		if (!parsedYaml || typeof parsedYaml !== 'object') {
+			return null;
+		}
+
+		// Extract the required fields for ModuleSchema
+		const schema: ModuleSchema = {
+			name: parsedYaml.name || '',
+			description: parsedYaml.description || '',
+			version: parsedYaml.version || '',
+			type: parsedYaml.type || ''
+		};
+
+		// Handle 'with' section
+		if (parsedYaml.with && typeof parsedYaml.with === 'object') {
+			schema.with = {
+				type: parsedYaml.with.type || 'object',
+				required: parsedYaml.with.required || false,
+				properties: parsedYaml.with.properties || {}
+			};
+		}
+
+		// Handle 'input' section
+		if (parsedYaml.input && typeof parsedYaml.input === 'object') {
+			schema.input = {
+				type: parsedYaml.input.type || 'object',
+				required: parsedYaml.input.required || false,
+				properties: parsedYaml.input.properties || {}
+			};
+		}
+
+		// Handle 'output' section
+		if (parsedYaml.output && typeof parsedYaml.output === 'object') {
+			schema.output = {
+				type: parsedYaml.output.type || 'object',
+				required: parsedYaml.output.required || false,
+				properties: parsedYaml.output.properties || {}
+			};
+		}
+
+		// Debug logging to verify parsing
+		console.log('Successfully parsed schema for', schema.name);
+		if (schema.with?.properties) {
+			console.log('Available properties:', Object.keys(schema.with.properties));
+		}
+
+		return schema;
+	} catch (error) {
+		console.error('Error parsing module YAML:', error);
+		return null;
+	}
+}
+
+function parseYamlValue(value: string): any {
+	if (!value) return '';
+	value = value.replace(/['"]/g, '');
+	if (value === 'true') return true;
+	if (value === 'false') return false;
+	if (!isNaN(Number(value))) return Number(value);
+	return value;
+}
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Phlow extension is now active!');
@@ -148,8 +281,57 @@ steps:
 		vscode.window.showInformationMessage(`Flow "${flowName}" created successfully!`);
 	});
 
+	// Enhanced command to validate with detailed output
+	const validateFlowCommand = vscode.commands.registerCommand('phlow.validateFlow', async (uri?: vscode.Uri) => {
+		const fileUri = uri || vscode.window.activeTextEditor?.document.uri;
+		if (!fileUri) {
+			vscode.window.showErrorMessage('No Phlow file selected');
+			return;
+		}
+
+		const document = await vscode.workspace.openTextDocument(fileUri);
+
+		// Show progress during validation
+		await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: "Validating Phlow flow...",
+			cancellable: false
+		}, async (progress) => {
+			progress.report({ increment: 30, message: "Parsing modules..." });
+			await validateDocument(document);
+
+			progress.report({ increment: 70, message: "Checking schemas..." });
+			await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for UX
+		});
+
+		const diagnostics = diagnosticCollection.get(fileUri);
+		if (diagnostics && diagnostics.length > 0) {
+			const errors = diagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Error).length;
+			const warnings = diagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Warning).length;
+
+			// Show detailed validation results
+			const message = `Flow validation completed:\n• ${errors} error(s)\n• ${warnings} warning(s)\n\nCheck the Problems panel for details.`;
+
+			if (errors > 0) {
+				vscode.window.showErrorMessage(message, 'Open Problems Panel').then(selection => {
+					if (selection) {
+						vscode.commands.executeCommand('workbench.panel.markers.view.focus');
+					}
+				});
+			} else {
+				vscode.window.showWarningMessage(message, 'Open Problems Panel').then(selection => {
+					if (selection) {
+						vscode.commands.executeCommand('workbench.panel.markers.view.focus');
+					}
+				});
+			}
+		} else {
+			vscode.window.showInformationMessage('✅ Flow validation passed successfully! No issues found.');
+		}
+	});
+
 	// Register commands
-	context.subscriptions.push(runFlowCommand, createNewFlowCommand);
+	context.subscriptions.push(runFlowCommand, createNewFlowCommand, validateFlowCommand);
 
 	// Command to run PHS scripts
 	const runPhsCommand = vscode.commands.registerCommand('phs.runScript', async (uri?: vscode.Uri) => {
@@ -236,14 +418,43 @@ steps:
 	// Activate specific features for .phlow files
 	const phlowDocumentSelector = { scheme: 'file', language: 'phlow' };
 
-	// Hover provider to show information about Phlow elements
+	// Enhanced hover provider to show information about Phlow elements and modules
 	const hoverProvider = vscode.languages.registerHoverProvider(phlowDocumentSelector, {
-		provideHover(document, position) {
+		async provideHover(document, position) {
 			const word = document.getWordRangeAtPosition(position);
 			if (!word) return;
 
 			const wordText = document.getText(word);
+			const line = document.lineAt(position.line).text;
 
+			// Check if this is a module name
+			if (line.includes('module:') && KNOWN_MODULES.includes(wordText)) {
+				const schema = await fetchModuleSchema(wordText);
+				if (schema) {
+					const hover = new vscode.MarkdownString();
+					hover.isTrusted = true;
+					hover.supportHtml = true;
+
+					hover.appendMarkdown(`### 📦 ${schema.name} Module\n\n`);
+					hover.appendMarkdown(`**Description:** ${schema.description}\n\n`);
+					hover.appendMarkdown(`**Version:** ${schema.version}\n\n`);
+					hover.appendMarkdown(`**Type:** ${schema.type}\n\n`);
+
+					if (schema.with?.properties) {
+						hover.appendMarkdown(`**Configuration Options:**\n`);
+						Object.entries(schema.with.properties).forEach(([key, prop]: [string, any]) => {
+							const required = prop.required ? ' *(required)*' : ' *(optional)*';
+							hover.appendMarkdown(`- \`${key}\`: ${prop.description || 'No description'}${required}\n`);
+						});
+					}
+
+					hover.appendMarkdown(`\n[📚 View module documentation](https://github.com/phlowdotdev/phlow/tree/main/modules/${wordText})`);
+
+					return new vscode.Hover(hover);
+				}
+			}
+
+			// Default hover texts for Phlow keywords
 			const hoverTexts: { [key: string]: vscode.MarkdownString } = {
 				'main': new vscode.MarkdownString('**main**: Specifies the main module that provides the initial context (e.g.: `cli`, `http_server`)'),
 				'modules': new vscode.MarkdownString('**modules**: List of modules required for the flow'),
@@ -254,6 +465,7 @@ steps:
 				'payload': new vscode.MarkdownString('**payload**: Data that the step sends to the next step'),
 				'return': new vscode.MarkdownString('**return**: Stops the flow and returns the specified data'),
 				'use': new vscode.MarkdownString('**use**: Specifies the module to be used in this step'),
+				'with': new vscode.MarkdownString('**with**: Configuration parameters for the module'),
 				'!phs': new vscode.MarkdownString('**!phs**: Directive to execute inline Phlow scripts'),
 				'!include': new vscode.MarkdownString('**!include**: Directive to include content from another YAML file'),
 				'!import': new vscode.MarkdownString('**!import**: Directive to import and execute a .phs script')
@@ -265,37 +477,474 @@ steps:
 
 	context.subscriptions.push(hoverProvider);
 
-	// Hover provider for PHS files
-	const phsDocumentSelector = { scheme: 'file', language: 'phs' };
-	const phsHoverProvider = vscode.languages.registerHoverProvider(phsDocumentSelector, {
-		provideHover(document, position) {
-			const word = document.getWordRangeAtPosition(position);
-			if (!word) return;
+	// Completion provider for module properties
+	const completionProvider = vscode.languages.registerCompletionItemProvider(
+		phlowDocumentSelector,
+		{
+			async provideCompletionItems(document, position, token, context) {
+				const lineText = document.lineAt(position.line).text;
+				const linePrefix = lineText.substring(0, position.character);
 
-			const wordText = document.getText(word);
+				// Check if we're in a module's 'with' section
+				const moduleMatch = findModuleContext(document, position);
+				if (moduleMatch) {
+					const schema = await fetchModuleSchema(moduleMatch.moduleName);
+					if (schema?.with?.properties) {
+						const completions: vscode.CompletionItem[] = [];
 
-			const phsHoverTexts: { [key: string]: vscode.MarkdownString } = {
-				'fn': new vscode.MarkdownString('**fn**: Declares a function in PHS\n```phs\nfn my_function(param1, param2) {\n    return param1 + param2;\n}\n```'),
-				'let': new vscode.MarkdownString('**let**: Declares a mutable variable\n```phs\nlet variable = value;\n```'),
-				'const': new vscode.MarkdownString('**const**: Declares a constant\n```phs\nconst MY_CONST = 42;\n```'),
-				'if': new vscode.MarkdownString('**if**: Conditional structure\n```phs\nif condition {\n    // code\n}\n```'),
-				'while': new vscode.MarkdownString('**while**: While loop\n```phs\nwhile condition {\n    // code\n}\n```'),
-				'for': new vscode.MarkdownString('**for**: For loop\n```phs\nfor item in array {\n    // code\n}\n```'),
-				'return': new vscode.MarkdownString('**return**: Returns a value from the function'),
-				'main': new vscode.MarkdownString('**main**: Access to Phlow main context\n```phs\nmain.parameter\n```'),
-				'payload': new vscode.MarkdownString('**payload**: Access to data from previous step\n```phs\npayload.data\n```'),
-				'steps': new vscode.MarkdownString('**steps**: Access to data from previous steps\n```phs\nsteps.step_id.result\n```'),
-				'envs': new vscode.MarkdownString('**envs**: Access to environment variables\n```phs\nenvs.MY_VARIABLE\n```'),
-				'print': new vscode.MarkdownString('**print**: Function to print values\n```phs\nprint("Hello, World!");\n```'),
-				'debug': new vscode.MarkdownString('**debug**: Function for debugging\n```phs\ndebug(variable);\n```'),
-				'log': new vscode.MarkdownString('**log**: Phlow function for logging\n```phs\nlog("info", "message");\n```')
-			};
+						// If we're in an array context, suggest array item properties
+						if (moduleMatch.arrayProperty) {
+							const arrayPropertySchema = schema.with.properties[moduleMatch.arrayProperty];
 
-			return phsHoverTexts[wordText] ? new vscode.Hover(phsHoverTexts[wordText]) : undefined;
+							if (arrayPropertySchema?.type === 'array' && arrayPropertySchema.items?.properties) {
+								Object.entries(arrayPropertySchema.items.properties).forEach(([key, prop]: [string, any]) => {
+									const completion = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
+									completion.detail = `${moduleMatch.arrayProperty} item property`;
+									completion.documentation = new vscode.MarkdownString(
+										`**${key}** (array item property)\n\n` +
+										`Type: \`${prop.type || 'any'}\`\n\n` +
+										`Required: ${prop.required ? 'Yes' : 'No'}\n\n` +
+										`${prop.description || 'No description available'}`
+									);
+
+									completion.insertText = `${key}: `;
+
+									if (prop.required) {
+										completion.sortText = `0_${key}`;
+										completion.label = `${key} *`;
+									} else {
+										completion.sortText = `1_${key}`;
+									}
+
+									completions.push(completion);
+								});
+
+								return completions;
+							}
+						}
+
+						// Otherwise suggest top-level module properties
+						Object.entries(schema.with.properties).forEach(([key, prop]: [string, any]) => {
+							const completion = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
+							completion.detail = prop.description || 'Module property';
+							completion.documentation = new vscode.MarkdownString(
+								`**${key}**\n\n` +
+								`Type: \`${prop.type || 'any'}\`\n\n` +
+								`Required: ${prop.required ? 'Yes' : 'No'}\n\n` +
+								`${prop.description || 'No description available'}`
+							);
+
+							// Add default value if available
+							if (prop.default !== undefined) {
+								completion.insertText = `${key}: ${formatYamlValue(prop.default, prop.type)}`;
+								completion.documentation.appendMarkdown(`\n\nDefault: \`${prop.default}\``);
+							} else {
+								completion.insertText = `${key}: `;
+							}
+
+							// Add required indicator
+							if (prop.required) {
+								completion.sortText = `0_${key}`; // Required items first
+								completion.label = `${key} *`;
+							} else {
+								completion.sortText = `1_${key}`;
+							}
+
+							completions.push(completion);
+						});
+
+						return completions;
+					}
+				}
+
+				// Default completions for Phlow keywords
+				if (linePrefix.trim() === '' || linePrefix.endsWith('  ')) {
+					return [
+						createCompletionItem('main', 'Main module', vscode.CompletionItemKind.Property),
+						createCompletionItem('name', 'Flow name', vscode.CompletionItemKind.Property),
+						createCompletionItem('version', 'Flow version', vscode.CompletionItemKind.Property),
+						createCompletionItem('description', 'Flow description', vscode.CompletionItemKind.Property),
+						createCompletionItem('modules', 'Required modules', vscode.CompletionItemKind.Property),
+						createCompletionItem('steps', 'Flow steps', vscode.CompletionItemKind.Property),
+					];
+				}
+
+				// Module name completions
+				if (linePrefix.includes('module:')) {
+					return KNOWN_MODULES.map(moduleName => {
+						const completion = new vscode.CompletionItem(moduleName, vscode.CompletionItemKind.Module);
+						completion.detail = `Phlow ${moduleName} module`;
+						completion.insertText = moduleName;
+						return completion;
+					});
+				}
+
+				return undefined;
+			}
+		},
+		':',  // Trigger on colon
+		' ',  // Trigger on space
+		'-'   // Trigger on dash (for YAML lists)
+	);
+
+	context.subscriptions.push(completionProvider);
+	// Document validation for modules
+	const diagnosticCollection = vscode.languages.createDiagnosticCollection('phlow');
+	context.subscriptions.push(diagnosticCollection);
+
+	async function validateDocument(document: vscode.TextDocument) {
+		if (document.languageId !== 'phlow') return;
+
+		const diagnostics: vscode.Diagnostic[] = [];
+		const lines = document.getText().split('\n');
+
+		// Parse document structure to find modules and their configurations
+		const modules = await parseDocumentModules(lines);
+
+		for (const moduleInfo of modules) {
+			// Validate module name
+			if (!KNOWN_MODULES.includes(moduleInfo.name)) {
+				diagnostics.push(new vscode.Diagnostic(
+					moduleInfo.nameRange,
+					`Unknown module '${moduleInfo.name}'. Available modules: ${KNOWN_MODULES.join(', ')}`,
+					vscode.DiagnosticSeverity.Warning
+				));
+				continue;
+			}
+
+			// Validate module properties
+			const schema = await fetchModuleSchema(moduleInfo.name);
+			if (schema && moduleInfo.withProperties) {
+				const propertyDiagnostics = await validateModuleProperties(moduleInfo, schema, lines);
+				diagnostics.push(...propertyDiagnostics);
+			}
+		}
+
+		diagnosticCollection.set(document.uri, diagnostics);
+	}
+
+	interface ModuleInfo {
+		name: string;
+		nameRange: vscode.Range;
+		lineIndex: number;
+		withProperties: Array<{
+			name: string;
+			range: vscode.Range;
+			lineIndex: number;
+		}>;
+	}
+
+	async function parseDocumentModules(lines: string[]): Promise<ModuleInfo[]> {
+		const modules: ModuleInfo[] = [];
+		let currentModule: ModuleInfo | null = null;
+		let withinWith = false;
+		let withIndent = 0;
+		let arrayContext: { propertyName: string; indent: number } | null = null;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			const trimmedLine = line.trim();
+			const currentIndent = line.length - line.trimStart().length;
+
+			// Find module declaration
+			const moduleMatch = line.match(/^\s*-?\s*module:\s*(\w+)/);
+			if (moduleMatch) {
+				// Save previous module if exists
+				if (currentModule) {
+					modules.push(currentModule);
+				}
+
+				const moduleName = moduleMatch[1];
+				const start = line.indexOf(moduleName);
+				currentModule = {
+					name: moduleName,
+					nameRange: new vscode.Range(i, start, i, start + moduleName.length),
+					lineIndex: i,
+					withProperties: []
+				};
+				withinWith = false;
+				arrayContext = null;
+				continue;
+			}
+
+			// Find 'with:' section
+			if (currentModule && trimmedLine === 'with:') {
+				withinWith = true;
+				withIndent = currentIndent;
+				arrayContext = null;
+				continue;
+			}
+
+			// Parse properties within 'with:' section
+			if (currentModule && withinWith && currentIndent > withIndent) {
+
+				// Handle array items (lines starting with -)
+				if (trimmedLine.startsWith('-') && arrayContext) {
+					// We're in an array context, don't add the dash itself as a property
+					continue;
+				}
+
+				// Handle regular properties
+				if (trimmedLine.includes(':')) {
+					const colonIndex = trimmedLine.indexOf(':');
+					const propertyName = trimmedLine.substring(0, colonIndex).trim();
+
+					// Skip array items markers and nested objects without property names
+					if (!propertyName.startsWith('-') && propertyName && !propertyName.includes(' ')) {
+						const start = line.indexOf(propertyName);
+
+						// Check if this is a top-level property in 'with:' section
+						if (currentIndent === withIndent + 2) {
+							currentModule.withProperties.push({
+								name: propertyName,
+								range: new vscode.Range(i, start, i, start + propertyName.length),
+								lineIndex: i
+							});
+
+							// Reset array context for new top-level property
+							arrayContext = null;
+						}
+						// Check if this is a property inside an array item
+						else if (arrayContext && currentIndent > arrayContext.indent) {
+							// Add this as a property that belongs to the array property
+							// We'll validate it against the array item schema
+							currentModule.withProperties.push({
+								name: `${arrayContext.propertyName}.${propertyName}`,
+								range: new vscode.Range(i, start, i, start + propertyName.length),
+								lineIndex: i
+							});
+						}
+					}
+				}
+
+				// Detect when we're entering an array context
+				if (currentModule.withProperties.length > 0) {
+					const lastProperty = currentModule.withProperties[currentModule.withProperties.length - 1];
+					if (!lastProperty.name.includes('.') && currentIndent === withIndent + 4 && trimmedLine.startsWith('-')) {
+						arrayContext = {
+							propertyName: lastProperty.name,
+							indent: currentIndent
+						};
+					}
+				}
+			}
+
+			// Exit 'with:' section if we're back to lower indent
+			if (withinWith && trimmedLine && currentIndent <= withIndent && !trimmedLine.startsWith('with:')) {
+				withinWith = false;
+				arrayContext = null;
+			}
+		}
+
+		// Add last module
+		if (currentModule) {
+			modules.push(currentModule);
+		}
+
+		return modules;
+	}
+
+	async function validateModuleProperties(moduleInfo: ModuleInfo, schema: ModuleSchema, lines: string[]): Promise<vscode.Diagnostic[]> {
+		const diagnostics: vscode.Diagnostic[] = [];
+
+		if (!schema.with?.properties) {
+			console.log(`No 'with' properties found for module ${moduleInfo.name}`);
+			return diagnostics;
+		}
+
+		const validProperties = Object.keys(schema.with.properties);
+		const requiredProperties = Object.entries(schema.with.properties)
+			.filter(([_, prop]: [string, any]) => prop.required)
+			.map(([key, _]) => key);
+
+		console.log(`Module ${moduleInfo.name} - Valid properties:`, validProperties);
+		console.log(`Module ${moduleInfo.name} - Required properties:`, requiredProperties);
+		console.log(`Module ${moduleInfo.name} - Found properties:`, moduleInfo.withProperties.map(p => p.name));
+
+		const foundProperties = new Set<string>();
+
+		// Validate each property
+		for (const prop of moduleInfo.withProperties) {
+			// Handle nested properties (like args.name, args.type, etc.)
+			if (prop.name.includes('.')) {
+				const [parentProperty, childProperty] = prop.name.split('.');
+				foundProperties.add(parentProperty); // Mark parent as found
+
+				// Get parent property schema
+				const parentSchema = schema.with.properties[parentProperty];
+				if (parentSchema) {
+					// Check if parent is an array with object items
+					if (parentSchema.type === 'array' && parentSchema.items?.properties) {
+						const validChildProperties = Object.keys(parentSchema.items.properties);
+
+						if (!validChildProperties.includes(childProperty)) {
+							console.log(`Invalid array item property: ${childProperty} for ${parentProperty} in module ${moduleInfo.name}`);
+							diagnostics.push(new vscode.Diagnostic(
+								prop.range,
+								`Invalid property '${childProperty}' for array '${parentProperty}' in module '${moduleInfo.name}'. Valid properties: ${validChildProperties.join(', ')}`,
+								vscode.DiagnosticSeverity.Error
+							));
+						}
+					}
+					// Check if parent is an object with nested properties
+					else if (parentSchema.type === 'object' && parentSchema.properties) {
+						const validChildProperties = Object.keys(parentSchema.properties);
+
+						if (!validChildProperties.includes(childProperty)) {
+							console.log(`Invalid nested property: ${childProperty} for ${parentProperty} in module ${moduleInfo.name}`);
+							diagnostics.push(new vscode.Diagnostic(
+								prop.range,
+								`Invalid property '${childProperty}' for object '${parentProperty}' in module '${moduleInfo.name}'. Valid properties: ${validChildProperties.join(', ')}`,
+								vscode.DiagnosticSeverity.Error
+							));
+						}
+					}
+				}
+			} else {
+				// Handle top-level properties
+				foundProperties.add(prop.name);
+
+				if (!validProperties.includes(prop.name)) {
+					console.log(`Invalid property found: ${prop.name} for module ${moduleInfo.name}`);
+					diagnostics.push(new vscode.Diagnostic(
+						prop.range,
+						`Invalid property '${prop.name}' for module '${moduleInfo.name}'. Valid properties: ${validProperties.join(', ')}`,
+						vscode.DiagnosticSeverity.Error
+					));
+				}
+			}
+		}
+
+		// Check for missing required properties
+		const missingRequired = requiredProperties.filter(prop => !foundProperties.has(prop));
+		if (missingRequired.length > 0) {
+			console.log(`Missing required properties for ${moduleInfo.name}:`, missingRequired);
+			diagnostics.push(new vscode.Diagnostic(
+				moduleInfo.nameRange,
+				`Module '${moduleInfo.name}' is missing required properties: ${missingRequired.join(', ')}`,
+				vscode.DiagnosticSeverity.Error
+			));
+		}
+
+		return diagnostics;
+	}
+
+	// Real-time validation with debouncing
+	let validationTimeout: NodeJS.Timeout | undefined;
+
+	vscode.workspace.onDidChangeTextDocument(e => {
+		if (e.document.languageId === 'phlow') {
+			// Clear previous timeout
+			if (validationTimeout) {
+				clearTimeout(validationTimeout);
+			}
+
+			// Debounce validation to avoid excessive API calls
+			validationTimeout = setTimeout(() => {
+				validateDocument(e.document);
+			}, 300);
 		}
 	});
 
-	context.subscriptions.push(phsHoverProvider);
+	vscode.workspace.onDidOpenTextDocument(doc => {
+		if (doc.languageId === 'phlow') {
+			validateDocument(doc);
+		}
+	});
+
+	vscode.workspace.onDidSaveTextDocument(doc => {
+		if (doc.languageId === 'phlow') {
+			validateDocument(doc);
+		}
+	});
+
+	// Validate open documents on activation
+	vscode.workspace.textDocuments.forEach(doc => {
+		if (doc.languageId === 'phlow') {
+			validateDocument(doc);
+		}
+	});
+
+	function findModuleContext(document: vscode.TextDocument, position: vscode.Position): { moduleName: string; withinWith: boolean; arrayProperty?: string } | null {
+		let currentModuleName = '';
+		let withinWith = false;
+		let withinModule = false;
+		let arrayProperty = '';
+
+		// Look backwards from current position to find module context
+		for (let i = position.line; i >= 0; i--) {
+			const line = document.lineAt(i).text;
+			const indent = line.length - line.trimStart().length;
+			const trimmedLine = line.trim();
+
+			// Check if we're in a 'with:' section
+			if (trimmedLine.startsWith('with:')) {
+				withinWith = true;
+				continue;
+			}
+
+			// Check if we're inside an array item (line starts with -)
+			if (trimmedLine.startsWith('-') && withinWith) {
+				// Look for the array property name above
+				for (let j = i - 1; j >= 0; j--) {
+					const prevLine = document.lineAt(j).text;
+					const prevTrimmed = prevLine.trim();
+					const prevIndent = prevLine.length - prevLine.trimStart().length;
+
+					if (prevTrimmed.includes(':') && prevIndent < indent) {
+						const colonIndex = prevTrimmed.indexOf(':');
+						const propertyName = prevTrimmed.substring(0, colonIndex).trim();
+						if (propertyName && !propertyName.startsWith('-')) {
+							arrayProperty = propertyName;
+							break;
+						}
+					}
+				}
+			}
+
+			// Check if we found a module declaration
+			const moduleMatch = line.match(/^\s*-?\s*module:\s*(\w+)/);
+			if (moduleMatch) {
+				currentModuleName = moduleMatch[1];
+				withinModule = true;
+				break;
+			}
+
+			// If we hit a different section or module, stop
+			if (indent <= 2 && trimmedLine && !trimmedLine.startsWith('-') && !trimmedLine.startsWith('with:')) {
+				break;
+			}
+		}
+
+		if (withinModule && currentModuleName && withinWith) {
+			return { moduleName: currentModuleName, withinWith: true, arrayProperty: arrayProperty || undefined };
+		}
+
+		return null;
+	}
+
+	function createCompletionItem(label: string, detail: string, kind: vscode.CompletionItemKind): vscode.CompletionItem {
+		const item = new vscode.CompletionItem(label, kind);
+		item.detail = detail;
+		item.insertText = `${label}: `;
+		return item;
+	}
+
+	function formatYamlValue(value: any, type?: string): string {
+		if (type === 'string' && typeof value === 'string') {
+			return `"${value}"`;
+		}
+		if (type === 'boolean') {
+			return value ? 'true' : 'false';
+		}
+		if (type === 'array') {
+			return '\n  - ';
+		}
+		if (type === 'object') {
+			return '\n  ';
+		}
+		return String(value);
+	}
 
 	// Provider for custom folding (maintains YAML compatibility)
 	const foldingProvider = vscode.languages.registerFoldingRangeProvider(phlowDocumentSelector, {
@@ -332,6 +981,46 @@ steps:
 	});
 
 	context.subscriptions.push(foldingProvider);
+
+	// Debug command to test module schema parsing
+	const testModuleSchemaCommand = vscode.commands.registerCommand('phlow.testModuleSchema', async () => {
+		const moduleName = await vscode.window.showInputBox({
+			prompt: 'Enter module name to test',
+			placeHolder: 'cli',
+			value: 'cli'
+		});
+
+		if (!moduleName) return;
+
+		vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: `Testing schema for module: ${moduleName}`,
+			cancellable: false
+		}, async (progress) => {
+			progress.report({ message: "Fetching schema..." });
+
+			const schema = await fetchModuleSchema(moduleName);
+
+			if (schema) {
+				const properties = schema.with?.properties ? Object.keys(schema.with.properties) : [];
+				const requiredProps = schema.with?.properties ?
+					Object.entries(schema.with.properties)
+						.filter(([_, prop]: [string, any]) => prop.required)
+						.map(([key, _]) => key) : [];
+
+				const message = `✅ Schema loaded for ${moduleName}:\n\n` +
+					`Properties (${properties.length}): ${properties.join(', ')}\n\n` +
+					`Required: ${requiredProps.join(', ')}\n\n` +
+					`Description: ${schema.description}`;
+
+				vscode.window.showInformationMessage(message);
+			} else {
+				vscode.window.showErrorMessage(`❌ Failed to load schema for module: ${moduleName}`);
+			}
+		});
+	});
+
+	context.subscriptions.push(testModuleSchemaCommand);
 }
 
 // This method is called when your extension is deactivated

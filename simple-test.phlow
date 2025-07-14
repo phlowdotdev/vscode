@@ -1,0 +1,13 @@
+main: cli
+name: Simple CLI Test
+version: 1.0.0
+
+modules:
+  - module: cli
+    with:
+      additional_args: false
+      args:
+        - name: test
+
+steps:
+  - return: "done"

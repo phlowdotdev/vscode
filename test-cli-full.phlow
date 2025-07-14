@@ -1,0 +1,34 @@
+main: cli
+name: Test Full CLI Module
+version: 1.0.0
+description: Testing CLI module with all properties
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      args:
+        - name: input
+          description: Input parameter
+          type: string
+          required: true
+          index: 1
+        - name: output
+          description: Output file
+          type: string
+          required: false
+          index: 2
+        - name: verbose
+          long: verbose
+          short: v
+          description: Enable verbose mode
+          type: boolean
+          default: false
+
+steps:
+  - payload:
+      input: !phs main.input
+      output: !phs main.output
+      verbose: !phs main.verbose
+  - return: !phs payload

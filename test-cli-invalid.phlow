@@ -1,0 +1,21 @@
+main: cli
+name: Test CLI Invalid Properties
+version: 1.0.0
+description: Testing CLI module with invalid properties that should show errors
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      invalid_property: "should show error"
+      wrong_config: true
+      args:
+        - name: input
+          description: Input parameter
+          type: string
+          required: true
+          index: 1
+
+steps:
+  - return: "Test complete"
