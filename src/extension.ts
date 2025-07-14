@@ -13,16 +13,19 @@ interface ModuleSchema {
 	with?: {
 		type: string;
 		required: boolean;
+		aditional_propierties?: boolean;
 		properties: { [key: string]: any };
 	};
 	input?: {
 		type: string;
 		required: boolean;
+		aditional_propierties?: boolean;
 		properties: { [key: string]: any };
 	};
 	output?: {
 		type: string;
 		required: boolean;
+		aditional_propierties?: boolean;
 		properties: { [key: string]: any };
 	};
 }
@@ -519,6 +522,16 @@ steps:
 									completions.push(completion);
 								});
 
+								// Add hint if additional properties are allowed
+								if (arrayPropertySchema.items.aditional_propierties === true) {
+									const additionalHint = new vscode.CompletionItem('...', vscode.CompletionItemKind.Text);
+									additionalHint.detail = 'Additional properties allowed';
+									additionalHint.documentation = new vscode.MarkdownString('This array item accepts additional properties beyond those listed above.');
+									additionalHint.sortText = '9_additional';
+									additionalHint.insertText = '';
+									completions.push(additionalHint);
+								}
+
 								return completions;
 							}
 						}
@@ -552,6 +565,16 @@ steps:
 
 							completions.push(completion);
 						});
+
+						// Add hint if additional properties are allowed at module level
+						if (schema.with.aditional_propierties === true) {
+							const additionalHint = new vscode.CompletionItem('...', vscode.CompletionItemKind.Text);
+							additionalHint.detail = 'Additional properties allowed';
+							additionalHint.documentation = new vscode.MarkdownString('This module accepts additional properties beyond those listed above.');
+							additionalHint.sortText = '9_additional';
+							additionalHint.insertText = '';
+							completions.push(additionalHint);
+						}
 
 						return completions;
 					}
@@ -760,6 +783,7 @@ steps:
 		console.log(`Module ${moduleInfo.name} - Valid properties:`, validProperties);
 		console.log(`Module ${moduleInfo.name} - Required properties:`, requiredProperties);
 		console.log(`Module ${moduleInfo.name} - Found properties:`, moduleInfo.withProperties.map(p => p.name));
+		console.log(`Module ${moduleInfo.name} - Additional properties allowed:`, schema.with.aditional_propierties === true);
 
 		const foundProperties = new Set<string>();
 
@@ -776,27 +800,35 @@ steps:
 					// Check if parent is an array with object items
 					if (parentSchema.type === 'array' && parentSchema.items?.properties) {
 						const validChildProperties = Object.keys(parentSchema.items.properties);
+						const allowsAdditionalProperties = parentSchema.items.aditional_propierties === true;
 
-						if (!validChildProperties.includes(childProperty)) {
+						// Only validate if additional properties are not allowed or if the property is in the schema
+						if (!allowsAdditionalProperties && !validChildProperties.includes(childProperty)) {
 							console.log(`Invalid array item property: ${childProperty} for ${parentProperty} in module ${moduleInfo.name}`);
 							diagnostics.push(new vscode.Diagnostic(
 								prop.range,
 								`Invalid property '${childProperty}' for array '${parentProperty}' in module '${moduleInfo.name}'. Valid properties: ${validChildProperties.join(', ')}`,
 								vscode.DiagnosticSeverity.Error
 							));
+						} else if (allowsAdditionalProperties && !validChildProperties.includes(childProperty)) {
+							console.log(`Additional array item property accepted: ${childProperty} for ${parentProperty} in module ${moduleInfo.name} (aditional_propierties: true)`);
 						}
 					}
 					// Check if parent is an object with nested properties
 					else if (parentSchema.type === 'object' && parentSchema.properties) {
 						const validChildProperties = Object.keys(parentSchema.properties);
+						const allowsAdditionalProperties = parentSchema.aditional_propierties === true;
 
-						if (!validChildProperties.includes(childProperty)) {
+						// Only validate if additional properties are not allowed or if the property is in the schema
+						if (!allowsAdditionalProperties && !validChildProperties.includes(childProperty)) {
 							console.log(`Invalid nested property: ${childProperty} for ${parentProperty} in module ${moduleInfo.name}`);
 							diagnostics.push(new vscode.Diagnostic(
 								prop.range,
 								`Invalid property '${childProperty}' for object '${parentProperty}' in module '${moduleInfo.name}'. Valid properties: ${validChildProperties.join(', ')}`,
 								vscode.DiagnosticSeverity.Error
 							));
+						} else if (allowsAdditionalProperties && !validChildProperties.includes(childProperty)) {
+							console.log(`Additional nested property accepted: ${childProperty} for ${parentProperty} in module ${moduleInfo.name} (aditional_propierties: true)`);
 						}
 					}
 				}
@@ -804,13 +836,19 @@ steps:
 				// Handle top-level properties
 				foundProperties.add(prop.name);
 
-				if (!validProperties.includes(prop.name)) {
+				// Check if additional properties are allowed at the module level
+				const allowsAdditionalProperties = schema.with.aditional_propierties === true;
+
+				// Only validate if additional properties are not allowed
+				if (!allowsAdditionalProperties && !validProperties.includes(prop.name)) {
 					console.log(`Invalid property found: ${prop.name} for module ${moduleInfo.name}`);
 					diagnostics.push(new vscode.Diagnostic(
 						prop.range,
 						`Invalid property '${prop.name}' for module '${moduleInfo.name}'. Valid properties: ${validProperties.join(', ')}`,
 						vscode.DiagnosticSeverity.Error
 					));
+				} else if (allowsAdditionalProperties && !validProperties.includes(prop.name)) {
+					console.log(`Additional property accepted: ${prop.name} for module ${moduleInfo.name} (aditional_propierties: true)`);
 				}
 			}
 		}

@@ -11,11 +11,9 @@ modules:
     with:
       args:
         - name: name
-          description: Nome do usuário
           type: string
           required: true
         - name: age
-          description: Idade do usuário
           type: number
           required: true
 

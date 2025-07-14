@@ -11,12 +11,10 @@ modules:
       additional_args: false
       args:
         - name: query
-          description: Consulta SQL para executar
           index: 1
           type: string
           required: true
         - name: limit
-          description: Limite de resultados
           long: limit
           short: l
           type: number

@@ -17,19 +17,16 @@ modules:
       additional_args: false
       args: 
         - name: name
-          description: Person's name
           index: 1
           type: string
           required: true
         - name: age
-          description: Person's age
           index: 2
           type: number
           required: true
         - name: force
           long: force
           short: f
-          description: Force execution even with invalid age
           type: boolean
           default: false
 
