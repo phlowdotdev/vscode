@@ -36,39 +36,6 @@ export function activate(context: vscode.ExtensionContext) {
 		terminal.sendText(`phlow "${fileUri.fsPath}"`);
 	});
 
-	// Command to validate a flow
-	const validateFlowCommand = vscode.commands.registerCommand('phlow.validateFlow', async (uri?: vscode.Uri) => {
-		const fileUri = uri || vscode.window.activeTextEditor?.document.uri;
-		if (!fileUri) {
-			vscode.window.showErrorMessage('No Phlow file selected');
-			return;
-		}
-
-		try {
-			const content = fs.readFileSync(fileUri.fsPath, 'utf8');
-			const yamlDoc = require('yaml').parse(content);
-
-			// Basic validations
-			const errors: string[] = [];
-
-			if (!yamlDoc.steps || !Array.isArray(yamlDoc.steps) || yamlDoc.steps.length === 0) {
-				errors.push('The "steps" field is required and must contain at least one step');
-			}
-
-			if (yamlDoc.version && !/^\d+\.\d+\.\d+$/.test(yamlDoc.version)) {
-				errors.push('Version must follow semantic versioning pattern (e.g., 1.0.0)');
-			}
-
-			if (errors.length > 0) {
-				vscode.window.showErrorMessage(`Validation errors:\n${errors.join('\n')}`);
-			} else {
-				vscode.window.showInformationMessage('Flow is valid!');
-			}
-		} catch (error) {
-			vscode.window.showErrorMessage(`Error validating flow: ${error}`);
-		}
-	});
-
 	// Command to create a new flow
 	const createNewFlowCommand = vscode.commands.registerCommand('phlow.createNewFlow', async () => {
 		const flowType = await vscode.window.showQuickPick([
@@ -182,7 +149,7 @@ steps:
 	});
 
 	// Register commands
-	context.subscriptions.push(runFlowCommand, validateFlowCommand, createNewFlowCommand);
+	context.subscriptions.push(runFlowCommand, createNewFlowCommand);
 
 	// Command to run PHS scripts
 	const runPhsCommand = vscode.commands.registerCommand('phs.runScript', async (uri?: vscode.Uri) => {
@@ -226,14 +193,6 @@ steps:
 				arguments: [document.uri]
 			};
 			codeLenses.push(new vscode.CodeLens(range, runCommand));
-
-			// Add "Validate Flow" CodeLens
-			const validateCommand: vscode.Command = {
-				title: "✓ Validate",
-				command: "phlow.validateFlow",
-				arguments: [document.uri]
-			};
-			codeLenses.push(new vscode.CodeLens(range, validateCommand));
 
 			return codeLenses;
 		}

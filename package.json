@@ -1,6 +1,6 @@
 {
   "name": "phlow",
-  "displayName": "Phlow Language Support",
+  "displayName": "Phlow",
   "description": "Language support for Phlow - Low Code Rust runtime for modular backends",
   "version": "0.0.1",
   "repository": "https://github.com/phlowdotdev/vscode",
