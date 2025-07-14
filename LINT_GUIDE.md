@@ -53,7 +53,7 @@ modules:
 ## 🛠️ Como Usar
 
 1. **Validação Automática**: O lint executa automaticamente enquanto você digita
-2. **Validação Manual**: Use `Ctrl+Shift+P` → "Validate Phlow Flow"
+2. **Validação Manual**: Use `Ctrl+Shift+P` → "Validate Phlow Phlow"
 3. **Painel de Problemas**: Veja todos os erros no painel "Problems" (Ctrl+Shift+M)
 
 ## 🎯 Benefícios

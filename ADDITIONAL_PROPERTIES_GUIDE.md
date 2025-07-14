@@ -43,7 +43,7 @@ with:
 ## Exemplo de Uso
 
 ```yaml
-# Flow usando propriedades adicionais
+# Phlow usando propriedades adicionais
 main: exemplo-modulo
 modules:
   - module: exemplo-modulo

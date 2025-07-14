@@ -17,7 +17,7 @@
   "keywords": [
     "phlow",
     "yaml",
-    "workflow",
+    "workphlow",
     "rust",
     "backend",
     "low-code"
@@ -93,18 +93,18 @@
     ],
     "commands": [
       {
-        "command": "phlow.runFlow",
-        "title": "Run Phlow Flow",
+        "command": "phlow.runPhlow",
+        "title": "Run Phlow Phlow",
         "category": "Phlow"
       },
       {
-        "command": "phlow.validateFlow",
-        "title": "Validate Phlow Flow",
+        "command": "phlow.validatePhlow",
+        "title": "Validate Phlow Phlow",
         "category": "Phlow"
       },
       {
-        "command": "phlow.createNewFlow",
-        "title": "Create New Phlow Flow",
+        "command": "phlow.createNewPhlow",
+        "title": "Create New Phlow Phlow",
         "category": "Phlow"
       },
       {
@@ -122,7 +122,7 @@
       "explorer/context": [
         {
           "when": "resourceExtname == .phlow",
-          "command": "phlow.runFlow",
+          "command": "phlow.runPhlow",
           "group": "navigation"
         },
         {
@@ -134,12 +134,12 @@
       "editor/context": [
         {
           "when": "resourceExtname == .phlow",
-          "command": "phlow.runFlow",
+          "command": "phlow.runPhlow",
           "group": "navigation"
         },
         {
           "when": "resourceExtname == .phlow",
-          "command": "phlow.validateFlow",
+          "command": "phlow.validatePhlow",
           "group": "navigation"
         },
         {

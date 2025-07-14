@@ -1,6 +1,6 @@
-name: Flow Simples
+name: Phlow Simples
 version: 1.0.0
-description: Exemplo de flow simples sem módulos externos
+description: Exemplo de phlow simples sem módulos externos
 author: Phlow Team
 
 steps:

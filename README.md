@@ -26,11 +26,11 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - Special highlighting for Phlow keywords (`main`, `modules`, `steps`, etc.)
 - Recognition of special directives (`!phs`, `!include`, `!import`)
 - Highlighting for known modules (cli, postgres, log, http_server)
-- Phlow-specific schema validation for flows
+- Phlow-specific schema validation for phlows
 
 ### 📝 Smart Snippets
-- **phlow-basic**: Basic flow structure with CLI
-- **phlow-simple**: Simple flow without modules
+- **phlow-basic**: Basic phlow structure with CLI
+- **phlow-simple**: Simple phlow without modules
 - **phlow-cli-module**: CLI module configuration
 - **phlow-step-assert**: Step with conditional logic
 - **phlow-step-use**: Step using modules
@@ -46,9 +46,9 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - **Required property detection** and warnings
 
 ### 🔧 Commands
-- **Run Phlow Flow**: Execute the current flow in terminal
-- **Validate Phlow Flow**: Comprehensive validation with detailed error reporting
-- **Create New Phlow Flow**: Wizard to create new flows
+- **Run Phlow Phlow**: Execute the current phlow in terminal
+- **Validate Phlow Phlow**: Comprehensive validation with detailed error reporting
+- **Create New Phlow Phlow**: Wizard to create new phlows
 
 ### 💡 IntelliSense
 - Hover for Phlow element documentation
@@ -64,27 +64,27 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 
 ## Quick Start
 
-### Creating a new flow
+### Creating a new phlow
 
-1. Use the command `Ctrl+Shift+P` and type "Create New Phlow Flow"
-2. Choose the desired flow type
-3. Enter the flow name
+1. Use the command `Ctrl+Shift+P` and type "Create New Phlow Phlow"
+2. Choose the desired phlow type
+3. Enter the phlow name
 4. The file will be created automatically with a template
 
-### Running a flow
+### Running a phlow
 
 1. Open a `.phlow` file
-2. Right-click and select "Run Phlow Flow"
-3. Or use `Ctrl+Shift+P` and type "Run Phlow Flow"
+2. Right-click and select "Run Phlow Phlow"
+3. Or use `Ctrl+Shift+P` and type "Run Phlow Phlow"
 
 ## Usage Examples
 
-### Basic CLI Flow
+### Basic CLI Phlow
 ```yaml
 main: cli
 name: Hello Phlow
 version: 1.0.0
-description: My first flow
+description: My first phlow
 modules:
   - module: cli
     version: latest
@@ -102,7 +102,7 @@ steps:
   - return: !phs `Hello, ${payload.greeting}!`
 ```
 
-### Flow with Inline PHS
+### Phlow with Inline PHS
 ```yaml
 main: cli
 name: PHS Demo
@@ -147,12 +147,12 @@ let user_data = main.user_name;
 process_data(user_data)
 ```
 
-## Supported Flow Types
+## Supported Phlow Types
 
-- **CLI Flows**: Command-line applications
-- **HTTP Flows**: Web servers and APIs
-- **Database Flows**: PostgreSQL integration
-- **Simple Flows**: Data processing without external modules
+- **CLI Phlows**: Command-line applications
+- **HTTP Phlows**: Web servers and APIs
+- **Database Phlows**: PostgreSQL integration
+- **Simple Phlows**: Data processing without external modules
 
 ## Special Directives
 
@@ -187,7 +187,7 @@ For the best experience:
 
 1. Install the Phlow runtime: [Official Documentation](https://phlow.dev/docs/intro)
 2. Configure your environment variables in VS Code
-3. Use the integrated terminal to run flows
+3. Use the integrated terminal to run phlows
 
 ## Contributing
 
@@ -202,7 +202,7 @@ Contributions are welcome! This project is in active development.
 
 - [Phlow Documentation](https://phlow.dev/docs/intro)
 - [Phlow GitHub](https://github.com/phlowdotdev/phlow)
-- [Flow Examples](https://github.com/phlowdotdev/phlow/tree/main/examples)
+- [Phlow Examples](https://github.com/phlowdotdev/phlow/tree/main/examples)
 
 ## License
 

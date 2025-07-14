@@ -159,8 +159,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// Command to run a flow
-	const runFlowCommand = vscode.commands.registerCommand('phlow.runFlow', async (uri?: vscode.Uri) => {
+	// Command to run a phlow
+	const runPhlowCommand = vscode.commands.registerCommand('phlow.runPhlow', async (uri?: vscode.Uri) => {
 		const fileUri = uri || vscode.window.activeTextEditor?.document.uri;
 		if (!fileUri) {
 			vscode.window.showErrorMessage('No Phlow file selected');
@@ -172,34 +172,34 @@ export function activate(context: vscode.ExtensionContext) {
 		terminal.sendText(`phlow "${fileUri.fsPath}"`);
 	});
 
-	// Command to create a new flow
-	const createNewFlowCommand = vscode.commands.registerCommand('phlow.createNewFlow', async () => {
-		const flowType = await vscode.window.showQuickPick([
-			{ label: 'Basic Flow', description: 'Flow with CLI and modules', value: 'basic' },
-			{ label: 'Simple Flow', description: 'Flow without external modules', value: 'simple' },
-			{ label: 'HTTP Flow', description: 'Flow with HTTP server', value: 'http' },
-			{ label: 'PostgreSQL Flow', description: 'Flow with database integration', value: 'postgres' }
+	// Command to create a new phlow
+	const createNewPhlowCommand = vscode.commands.registerCommand('phlow.createNewPhlow', async () => {
+		const phlowType = await vscode.window.showQuickPick([
+			{ label: 'Basic Phlow', description: 'Phlow with CLI and modules', value: 'basic' },
+			{ label: 'Simple Phlow', description: 'Phlow without external modules', value: 'simple' },
+			{ label: 'HTTP Phlow', description: 'Phlow with HTTP server', value: 'http' },
+			{ label: 'PostgreSQL Phlow', description: 'Phlow with database integration', value: 'postgres' }
 		], {
-			placeHolder: 'Select flow type'
+			placeHolder: 'Select phlow type'
 		});
 
-		if (!flowType) return;
+		if (!phlowType) return;
 
-		const flowName = await vscode.window.showInputBox({
-			prompt: 'Flow name',
-			placeHolder: 'my-flow'
+		const phlowName = await vscode.window.showInputBox({
+			prompt: 'Phlow name',
+			placeHolder: 'my-phlow'
 		});
 
-		if (!flowName) return;
+		if (!phlowName) return;
 
 		let template = '';
 
-		switch (flowType.value) {
+		switch (phlowType.value) {
 			case 'basic':
 				template = `main: cli
-name: ${flowName}
+name: ${phlowName}
 version: 1.0.0
-description: Flow description
+description: Phlow description
 author: Your Name
 modules:
   - module: cli
@@ -219,9 +219,9 @@ steps:
 `;
 				break;
 			case 'simple':
-				template = `name: ${flowName}
+				template = `name: ${phlowName}
 version: 1.0.0
-description: Simple flow description
+description: Simple phlow description
 steps:
   - payload: "Hello, World!"
   - payload: !phs \`Result: \${payload}\`
@@ -229,9 +229,9 @@ steps:
 				break;
 			case 'http':
 				template = `main: http_server
-name: ${flowName}
+name: ${phlowName}
 version: 1.0.0
-description: HTTP server flow
+description: HTTP server phlow
 modules:
   - module: http_server
     version: latest
@@ -245,9 +245,9 @@ steps:
 				break;
 			case 'postgres':
 				template = `main: cli
-name: ${flowName}
+name: ${phlowName}
 version: 1.0.0
-description: PostgreSQL flow
+description: PostgreSQL phlow
 modules:
   - module: cli
     version: latest
@@ -277,15 +277,15 @@ steps:
 
 		const newFile = vscode.Uri.file(path.join(
 			vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '',
-			`${flowName}.phlow`
+			`${phlowName}.phlow`
 		)); await vscode.workspace.fs.writeFile(newFile, Buffer.from(template, 'utf8'));
 		await vscode.window.showTextDocument(newFile);
 
-		vscode.window.showInformationMessage(`Flow "${flowName}" created successfully!`);
+		vscode.window.showInformationMessage(`Phlow "${phlowName}" created successfully!`);
 	});
 
 	// Enhanced command to validate with detailed output
-	const validateFlowCommand = vscode.commands.registerCommand('phlow.validateFlow', async (uri?: vscode.Uri) => {
+	const validatePhlowCommand = vscode.commands.registerCommand('phlow.validatePhlow', async (uri?: vscode.Uri) => {
 		const fileUri = uri || vscode.window.activeTextEditor?.document.uri;
 		if (!fileUri) {
 			vscode.window.showErrorMessage('No Phlow file selected');
@@ -297,7 +297,7 @@ steps:
 		// Show progress during validation
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: "Validating Phlow flow...",
+			title: "Validating Phlow phlow...",
 			cancellable: false
 		}, async (progress) => {
 			progress.report({ increment: 30, message: "Parsing modules..." });
@@ -313,7 +313,7 @@ steps:
 			const warnings = diagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Warning).length;
 
 			// Show detailed validation results
-			const message = `Flow validation completed:\n• ${errors} error(s)\n• ${warnings} warning(s)\n\nCheck the Problems panel for details.`;
+			const message = `Phlow validation completed:\n• ${errors} error(s)\n• ${warnings} warning(s)\n\nCheck the Problems panel for details.`;
 
 			if (errors > 0) {
 				vscode.window.showErrorMessage(message, 'Open Problems Panel').then(selection => {
@@ -329,12 +329,12 @@ steps:
 				});
 			}
 		} else {
-			vscode.window.showInformationMessage('✅ Flow validation passed successfully! No issues found.');
+			vscode.window.showInformationMessage('✅ Phlow validation passed successfully! No issues found.');
 		}
 	});
 
 	// Register commands
-	context.subscriptions.push(runFlowCommand, createNewFlowCommand, validateFlowCommand);
+	context.subscriptions.push(runPhlowCommand, createNewPhlowCommand, validatePhlowCommand);
 
 	// Command to run PHS scripts
 	const runPhsCommand = vscode.commands.registerCommand('phs.runScript', async (uri?: vscode.Uri) => {
@@ -371,10 +371,10 @@ steps:
 
 			const range = new vscode.Range(targetLine, 0, targetLine, 0);
 
-			// Add "Run Flow" CodeLens
+			// Add "Run Phlow" CodeLens
 			const runCommand: vscode.Command = {
-				title: "▶ Run Flow",
-				command: "phlow.runFlow",
+				title: "▶ Run Phlow",
+				command: "phlow.runPhlow",
 				arguments: [document.uri]
 			};
 			codeLenses.push(new vscode.CodeLens(range, runCommand));
@@ -460,13 +460,13 @@ steps:
 			// Default hover texts for Phlow keywords
 			const hoverTexts: { [key: string]: vscode.MarkdownString } = {
 				'main': new vscode.MarkdownString('**main**: Specifies the main module that provides the initial context (e.g.: `cli`, `http_server`)'),
-				'modules': new vscode.MarkdownString('**modules**: List of modules required for the flow'),
-				'steps': new vscode.MarkdownString('**steps**: Sequence of steps that the flow will execute'),
-				'assert': new vscode.MarkdownString('**assert**: Evaluates a boolean condition to control flow'),
+				'modules': new vscode.MarkdownString('**modules**: List of modules required for the phlow'),
+				'steps': new vscode.MarkdownString('**steps**: Sequence of steps that the phlow will execute'),
+				'assert': new vscode.MarkdownString('**assert**: Evaluates a boolean condition to control phlow'),
 				'then': new vscode.MarkdownString('**then**: Executes if the assertion is true'),
 				'else': new vscode.MarkdownString('**else**: Executes if the assertion is false'),
 				'payload': new vscode.MarkdownString('**payload**: Data that the step sends to the next step'),
-				'return': new vscode.MarkdownString('**return**: Stops the flow and returns the specified data'),
+				'return': new vscode.MarkdownString('**return**: Stops the phlow and returns the specified data'),
 				'use': new vscode.MarkdownString('**use**: Specifies the module to be used in this step'),
 				'with': new vscode.MarkdownString('**with**: Configuration parameters for the module'),
 				'!phs': new vscode.MarkdownString('**!phs**: Directive to execute inline Phlow scripts'),
@@ -584,11 +584,11 @@ steps:
 				if (linePrefix.trim() === '' || linePrefix.endsWith('  ')) {
 					return [
 						createCompletionItem('main', 'Main module', vscode.CompletionItemKind.Property),
-						createCompletionItem('name', 'Flow name', vscode.CompletionItemKind.Property),
-						createCompletionItem('version', 'Flow version', vscode.CompletionItemKind.Property),
-						createCompletionItem('description', 'Flow description', vscode.CompletionItemKind.Property),
+						createCompletionItem('name', 'Phlow name', vscode.CompletionItemKind.Property),
+						createCompletionItem('version', 'Phlow version', vscode.CompletionItemKind.Property),
+						createCompletionItem('description', 'Phlow description', vscode.CompletionItemKind.Property),
 						createCompletionItem('modules', 'Required modules', vscode.CompletionItemKind.Property),
-						createCompletionItem('steps', 'Flow steps', vscode.CompletionItemKind.Property),
+						createCompletionItem('steps', 'Phlow steps', vscode.CompletionItemKind.Property),
 					];
 				}
 

@@ -1,11 +1,11 @@
 {
-    "Phlow Basic Flow": {
+    "Phlow Basic Phlow": {
         "prefix": "phlow-basic",
         "body": [
             "main: ${1:cli}",
-            "name: ${2:My Flow}",
+            "name: ${2:My Phlow}",
             "version: ${3:1.0.0}",
-            "description: ${4:Flow description}",
+            "description: ${4:Phlow description}",
             "author: ${5:Your Name}",
             "modules:",
             "  - module: ${1:cli}",
@@ -23,19 +23,19 @@
             "      message: !phs main.${6:input}",
             "  - return: !phs `Hello, \\${payload.message}!`"
         ],
-        "description": "Basic Phlow flow structure"
+        "description": "Basic Phlow phlow structure"
     },
-    "Phlow Simple Flow": {
+    "Phlow Simple Phlow": {
         "prefix": "phlow-simple",
         "body": [
-            "name: ${1:Simple Flow}",
+            "name: ${1:Simple Phlow}",
             "version: ${2:1.0.0}",
-            "description: ${3:Simple flow description}",
+            "description: ${3:Simple phlow description}",
             "steps:",
             "  - payload: \"${4:Hello, World!}\"",
             "  - payload: !phs `Result: \\${payload}`"
         ],
-        "description": "Simple Phlow flow without modules"
+        "description": "Simple Phlow phlow without modules"
     },
     "Phlow CLI Module": {
         "prefix": "phlow-cli-module",

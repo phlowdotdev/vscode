@@ -1,7 +1,7 @@
 # Este arquivo .phlow deve se comportar exatamente como um YAML normal
 # Incluindo todas as funcionalidades: folding, indentação, syntax highlighting base, etc.
 
-# Metadados do flow (YAML simples)
+# Metadados do phlow (YAML simples)
 name: "Demonstração YAML Normal"
 version: "1.0.0"
 description: |

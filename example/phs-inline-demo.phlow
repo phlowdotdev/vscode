@@ -2,7 +2,7 @@
 main: cli
 name: PHS Inline Demo
 version: 1.0.0
-description: Demonstra syntax highlighting de PHS inline em flows
+description: Demonstra syntax highlighting de PHS inline em phlows
 author: Phlow Team
 
 modules:

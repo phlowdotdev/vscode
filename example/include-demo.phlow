@@ -1,5 +1,5 @@
 main: cli
-name: Flow with Include
+name: Phlow with Include
 version: 1.0.0
 description: Demonstra o uso de !include para módulos
 author: Phlow Team

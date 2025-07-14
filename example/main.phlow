@@ -1,4 +1,4 @@
-# Complete Phlow Flow example with all features
+# Complete Phlow Phlow example with all features
 main: cli
 name: Complete Phlow Example
 version: 1.0.0
@@ -9,7 +9,7 @@ tags:
   - cli
   - demo
 
-# Required modules for this flow
+# Required modules for this phlow
 modules:
   - module: cli
     version: latest
@@ -30,7 +30,7 @@ modules:
           type: boolean
           default: false
 
-# Flow execution sequence
+# Phlow execution sequence
 steps:
   # Step 1: Input validation with force
   - assert: !phs main.force

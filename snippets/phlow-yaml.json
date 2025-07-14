@@ -10,15 +10,15 @@
         "prefix": "phlow-main",
         "body": [
             "main: ${1:cli}",
-            "name: ${2:Flow Name}",
+            "name: ${2:Phlow Name}",
             "version: ${3:1.0.0}",
-            "description: ${4:Flow description}",
+            "description: ${4:Phlow description}",
             "author: ${5:Your Name}",
             "modules: !include modules.yaml",
             "steps:",
             "  - ${6:first_step}"
         ],
-        "description": "Main Phlow flow structure for YAML files"
+        "description": "Main Phlow phlow structure for YAML files"
     },
     "PHS Expression": {
         "prefix": "phs-expr",

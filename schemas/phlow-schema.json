@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "Phlow Flow Schema",
-    "description": "Schema for Phlow flow files",
+    "title": "Phlow Phlow Schema",
+    "description": "Schema for Phlow phlow files",
     "type": "object",
     "properties": {
         "main": {
@@ -15,25 +15,25 @@
         },
         "name": {
             "type": "string",
-            "description": "Flow name",
+            "description": "Phlow name",
             "minLength": 1
         },
         "version": {
             "type": "string",
-            "description": "Flow version (semantic versioning)",
+            "description": "Phlow version (semantic versioning)",
             "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
         "description": {
             "type": "string",
-            "description": "Flow description"
+            "description": "Phlow description"
         },
         "author": {
             "type": "string",
-            "description": "Flow author"
+            "description": "Phlow author"
         },
         "tags": {
             "type": "array",
-            "description": "Flow tags",
+            "description": "Phlow tags",
             "items": {
                 "type": "string"
             }
@@ -56,7 +56,7 @@
         },
         "steps": {
             "type": "array",
-            "description": "Flow execution steps",
+            "description": "Phlow execution steps",
             "items": {
                 "$ref": "#/definitions/step"
             },

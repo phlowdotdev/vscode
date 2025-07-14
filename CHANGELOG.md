@@ -13,8 +13,8 @@
   - Colorização para módulos conhecidos (cli, postgres, log, http_server)
 
 - 📝 **Snippets inteligentes** para desenvolvimento rápido
-  - `phlow-basic`: Estrutura básica de flow com CLI
-  - `phlow-simple`: Flow simples sem módulos externos
+  - `phlow-basic`: Estrutura básica de phlow com CLI
+  - `phlow-simple`: Phlow simples sem módulos externos
   - `phlow-cli-module`: Configuração de módulo CLI
   - `phlow-step-assert`: Step com lógica condicional
   - `phlow-step-use`: Step usando módulos
@@ -24,9 +24,9 @@
   - E muito mais...
 
 - 🔧 **Comandos de produtividade**
-  - `Run Phlow Flow`: Executa o flow atual no terminal
-  - `Validate Phlow Flow`: Valida sintaxe e estrutura
-  - `Create New Phlow Flow`: Assistente para novos flows com templates
+  - `Run Phlow Phlow`: Executa o phlow atual no terminal
+  - `Validate Phlow Phlow`: Valida sintaxe e estrutura
+  - `Create New Phlow Phlow`: Assistente para novos phlows com templates
 
 - 💡 **IntelliSense e validação**
   - Hover documentation para elementos Phlow
@@ -47,11 +47,11 @@
 - TypeScript para lógica da extensão
 - Snippets em formato JSON
 
-### Tipos de Flow Suportados
-- **CLI Flows**: Aplicações de linha de comando
-- **HTTP Flows**: Servidores web e APIs REST
-- **Database Flows**: Integração com PostgreSQL
-- **Simple Flows**: Processamento de dados sem módulos externos
+### Tipos de Phlow Suportados
+- **CLI Phlows**: Aplicações de linha de comando
+- **HTTP Phlows**: Servidores web e APIs REST
+- **Database Phlows**: Integração com PostgreSQL
+- **Simple Phlows**: Processamento de dados sem módulos externos
 
 ### Diretivas Implementadas
 - `!phs`: Phlow Script para código dinâmico
@@ -68,7 +68,7 @@
 
 Próximas versões planejadas:
 - 🔍 Goto definition para módulos incluídos
-- 🧪 Debug support para flows
+- 🧪 Debug support para phlows
 - 📊 Integração com OpenTelemetry traces
-- 🚀 Deploy automation para flows
+- 🚀 Deploy automation para phlows
 - 🔄 Hot reload durante desenvolvimento
