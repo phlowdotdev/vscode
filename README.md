@@ -47,6 +47,7 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 
 ### 🔧 Commands
 - **Run Phlow Phlow**: Execute the current phlow in terminal
+- **Run Phlow Tests**: Execute the phlow tests using `phlow file.phlow --test`
 - **Validate Phlow Phlow**: Comprehensive validation with detailed error reporting
 - **Create New Phlow Phlow**: Wizard to create new phlows
 
@@ -76,6 +77,15 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 1. Open a `.phlow` file
 2. Right-click and select "Run Phlow Phlow"
 3. Or use `Ctrl+Shift+P` and type "Run Phlow Phlow"
+
+### Running phlow tests
+
+1. Open a `.phlow` file that contains a `tests:` section
+2. Right-click and select "Run Phlow Tests"
+3. Or use `Ctrl+Shift+P` and type "Run Phlow Tests"
+4. The extension will execute `phlow file.phlow --test` in the terminal
+
+> **💡 Tip**: Files with tests will show a "🧪 Run Tests" CodeLens at the top for quick access
 
 ## Usage Examples
 
@@ -145,6 +155,37 @@ fn process_data(input) {
 // Access to Phlow context
 let user_data = main.user_name;
 process_data(user_data)
+```
+
+### Phlow with Tests
+```yaml
+main: cli
+name: Math Calculator
+version: 1.0.0
+description: Calculator with test cases
+modules:
+  - module: cli
+    version: latest
+    with:
+      args:
+        - name: total
+          type: number
+          required: true
+
+# Test cases - run with "phlow file.phlow --test"
+tests: 
+  - main:
+      total: 2
+    payload: 10
+    assert_eq: "Total is 20"
+  - main:
+      total: 3
+    payload: 5
+    assert: !phs payload == "Total is 15"
+
+steps:
+  - payload: !phs main.total * payload 
+  - payload: !phs `Total is ${payload}`
 ```
 
 ## Supported Phlow Types

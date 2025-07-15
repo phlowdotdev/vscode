@@ -11,6 +11,24 @@ modules:
       port: 8080
       host: localhost
 
+tests:
+  - main:
+      method: GET
+      path: /test
+    payload:
+      message: "Hello Test"
+    assert_eq:
+      status_code: 200
+      headers:
+        Content-Type: application/json
+        X-Processed-By: Phlow
+  - main:
+      method: POST
+      body: '{"data": "test"}'
+    payload:
+      response: "Processed"
+    assert: !phs payload.body.headers["Content-Type"] == "application/json"
+
 steps:
   - payload:
       request_info: !phs main

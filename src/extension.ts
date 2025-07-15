@@ -172,6 +172,28 @@ export function activate(context: vscode.ExtensionContext) {
 		terminal.sendText(`phlow "${fileUri.fsPath}"`);
 	});
 
+	// Command to run phlow tests
+	const runPhlowTestsCommand = vscode.commands.registerCommand('phlow.runPhlowTests', async (uri?: vscode.Uri) => {
+		const fileUri = uri || vscode.window.activeTextEditor?.document.uri;
+		if (!fileUri) {
+			vscode.window.showErrorMessage('No Phlow file selected');
+			return;
+		}
+
+		// Check if the file has tests before running
+		const document = await vscode.workspace.openTextDocument(fileUri);
+		const text = document.getText();
+
+		if (!text.includes('tests:')) {
+			vscode.window.showWarningMessage('No tests found in this Phlow file. Add a "tests:" section to run tests.');
+			return;
+		}
+
+		const terminal = vscode.window.createTerminal('Phlow Tests');
+		terminal.show();
+		terminal.sendText(`phlow "${fileUri.fsPath}" --test`);
+	});
+
 	// Command to create a new phlow
 	const createNewPhlowCommand = vscode.commands.registerCommand('phlow.createNewPhlow', async () => {
 		const phlowType = await vscode.window.showQuickPick([
@@ -334,7 +356,7 @@ steps:
 	});
 
 	// Register commands
-	context.subscriptions.push(runPhlowCommand, createNewPhlowCommand, validatePhlowCommand);
+	context.subscriptions.push(runPhlowCommand, runPhlowTestsCommand, createNewPhlowCommand, validatePhlowCommand);
 
 	// Command to run PHS scripts
 	const runPhsCommand = vscode.commands.registerCommand('phs.runScript', async (uri?: vscode.Uri) => {
@@ -359,25 +381,54 @@ steps:
 			const text = document.getText();
 			const lines = text.split('\n');
 
-			// Find the best position for CodeLens (after name or main declaration)
-			let targetLine = 0;
-			for (let i = 0; i < lines.length && i < 10; i++) {
+			// Find the best position for "Run Phlow" CodeLens (main: first, then steps:)
+			let runPhlowLine = -1;
+
+			// First try to find "main:"
+			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i].trim();
-				if (line.startsWith('name:') || line.startsWith('main:') || line.startsWith('version:')) {
-					targetLine = i;
+				if (line.startsWith('main:')) {
+					runPhlowLine = i;
 					break;
 				}
 			}
 
-			const range = new vscode.Range(targetLine, 0, targetLine, 0);
+			// If no "main:" found, look for "steps:"
+			if (runPhlowLine === -1) {
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i].trim();
+					if (line.startsWith('steps:')) {
+						runPhlowLine = i;
+						break;
+					}
+				}
+			}
 
-			// Add "Run Phlow" CodeLens
-			const runCommand: vscode.Command = {
-				title: "▶ Run Phlow",
-				command: "phlow.runPhlow",
-				arguments: [document.uri]
-			};
-			codeLenses.push(new vscode.CodeLens(range, runCommand));
+			// Add "Run Phlow" CodeLens if we found a suitable position
+			if (runPhlowLine !== -1) {
+				const runRange = new vscode.Range(runPhlowLine, 0, runPhlowLine, 0);
+				const runCommand: vscode.Command = {
+					title: "▶ Run Phlow",
+					command: "phlow.runPhlow",
+					arguments: [document.uri]
+				};
+				codeLenses.push(new vscode.CodeLens(runRange, runCommand));
+			}
+
+			// Find tests: line and add "Run Tests" CodeLens above it
+			for (let i = 0; i < lines.length; i++) {
+				const line = lines[i].trim();
+				if (line.startsWith('tests:')) {
+					const testRange = new vscode.Range(i, 0, i, 0);
+					const testCommand: vscode.Command = {
+						title: "🧪 Run Tests",
+						command: "phlow.runPhlowTests",
+						arguments: [document.uri]
+					};
+					codeLenses.push(new vscode.CodeLens(testRange, testCommand));
+					break;
+				}
+			}
 
 			return codeLenses;
 		}
@@ -456,13 +507,14 @@ steps:
 					return new vscode.Hover(hover);
 				}
 			}
-
 			// Default hover texts for Phlow keywords
 			const hoverTexts: { [key: string]: vscode.MarkdownString } = {
 				'main': new vscode.MarkdownString('**main**: Specifies the main module that provides the initial context (e.g.: `cli`, `http_server`)'),
 				'modules': new vscode.MarkdownString('**modules**: List of modules required for the phlow'),
 				'steps': new vscode.MarkdownString('**steps**: Sequence of steps that the phlow will execute'),
+				'tests': new vscode.MarkdownString('**tests**: List of test cases for the phlow. Run with `phlow file.phlow --test`'),
 				'assert': new vscode.MarkdownString('**assert**: Evaluates a boolean condition to control phlow'),
+				'assert_eq': new vscode.MarkdownString('**assert_eq**: Asserts that the result equals the expected value'),
 				'then': new vscode.MarkdownString('**then**: Executes if the assertion is true'),
 				'else': new vscode.MarkdownString('**else**: Executes if the assertion is false'),
 				'payload': new vscode.MarkdownString('**payload**: Data that the step sends to the next step'),
@@ -588,6 +640,7 @@ steps:
 						createCompletionItem('version', 'Phlow version', vscode.CompletionItemKind.Property),
 						createCompletionItem('description', 'Phlow description', vscode.CompletionItemKind.Property),
 						createCompletionItem('modules', 'Required modules', vscode.CompletionItemKind.Property),
+						createCompletionItem('tests', 'Test cases', vscode.CompletionItemKind.Property),
 						createCompletionItem('steps', 'Phlow steps', vscode.CompletionItemKind.Property),
 					];
 				}
@@ -993,7 +1046,7 @@ steps:
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i];
 				// Detect YAML/Phlow blocks for folding
-				if (/^(\s*)(steps|modules|then|else):\s*$/.test(line)) {
+				if (/^(\s*)(steps|modules|tests|then|else):\s*$/.test(line)) {
 					const indent = line.match(/^(\s*)/)?.[1].length || 0;
 					let endLine = i;
 
