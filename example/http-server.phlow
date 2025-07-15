@@ -32,7 +32,7 @@ tests:
 steps:
   - payload:
       request_info: !phs main
-      processed_at: !phs `new Date().toISOString()`
+      processed_at: !phs "new Date().toISOString()"
   - return:
       status_code: 200
       body: !phs payload

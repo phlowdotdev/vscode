@@ -394,12 +394,97 @@ class PhlowTestProvider {
 	private async runTestItem(test: vscode.TestItem, run: vscode.TestRun) {
 		if (test.children.size > 0) {
 			// This is a file test, run all its children
-			test.children.forEach(async (childTest) => {
-				await this.runSingleTest(childTest, run);
-			});
+			console.log(`🧪 Phlow: Running all tests in file: ${test.label}`);
+			await this.runAllTestsInFile(test, run);
 		} else {
 			// This is an individual test
 			await this.runSingleTest(test, run);
+		}
+	}
+
+	private async runAllTestsInFile(fileTest: vscode.TestItem, run: vscode.TestRun) {
+		try {
+			if (!fileTest.uri) {
+				run.failed(fileTest, new vscode.TestMessage('No file URI found'));
+				return;
+			}
+
+			console.log(`🧪 Phlow: Running all tests in file: ${fileTest.uri.fsPath}`);
+
+			// Mark all child tests as started
+			fileTest.children.forEach(childTest => {
+				run.started(childTest);
+			});
+
+			// Execute all tests and capture the result
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(fileTest.uri);
+			const cwd = workspaceFolder?.uri.fsPath || path.dirname(fileTest.uri.fsPath);
+
+			const command = `phlow "${fileTest.uri.fsPath}" --test`;
+			console.log(`🧪 Phlow: Executing command: ${command}`);
+
+			// Execute the command using child process
+			const { spawn } = require('child_process');
+
+			const process = spawn('phlow', [fileTest.uri.fsPath, '--test'], {
+				cwd: cwd,
+				stdio: ['pipe', 'pipe', 'pipe']
+			});
+
+			let stdout = '';
+			let stderr = '';
+
+			process.stdout.on('data', (data: Buffer) => {
+				stdout += data.toString();
+			});
+
+			process.stderr.on('data', (data: Buffer) => {
+				stderr += data.toString();
+			});
+
+			// Wait for the process to complete
+			const exitCode = await new Promise<number>((resolve, reject) => {
+				process.on('close', (code: number) => {
+					resolve(code);
+				});
+
+				process.on('error', (error: Error) => {
+					reject(error);
+				});
+
+				// Timeout after 15 seconds for all tests
+				setTimeout(() => {
+					process.kill();
+					reject(new Error('Test execution timeout'));
+				}, 15000);
+			});
+
+			console.log(`🧪 Phlow: All tests completed with exit code: ${exitCode}`);
+			console.log(`🧪 Phlow: stdout:`, stdout);
+			if (stderr) {
+				console.log(`🧪 Phlow: stderr:`, stderr);
+			}
+
+			// Mark all tests based on overall result
+			// TODO: Parse output to determine individual test results
+			if (exitCode === 0) {
+				fileTest.children.forEach(childTest => {
+					run.passed(childTest);
+				});
+				console.log(`✅ Phlow: All tests in ${fileTest.label} passed`);
+			} else {
+				const errorMessage = stderr || stdout || `Tests failed with exit code ${exitCode}`;
+				fileTest.children.forEach(childTest => {
+					run.failed(childTest, new vscode.TestMessage(errorMessage));
+				});
+				console.log(`❌ Phlow: Tests in ${fileTest.label} failed: ${errorMessage}`);
+			}
+
+		} catch (error) {
+			console.error(`🧪 Phlow: Error running tests in file:`, error);
+			fileTest.children.forEach(childTest => {
+				run.failed(childTest, new vscode.TestMessage(`Error running test: ${error}`));
+			});
 		}
 	}
 
@@ -422,40 +507,86 @@ class PhlowTestProvider {
 
 			const testIndex = parseInt(match[1]);
 
-			// Create a temporary file with just this test
+			// Get test data to extract the describe value
 			const document = await vscode.workspace.openTextDocument(test.uri);
 			const content = document.getText();
-			const parsed = yaml.parse(content);
+			const parsed = yaml.parse(content, {
+				strict: false,
+				uniqueKeys: false,
+				logLevel: 'silent'
+			});
 
 			if (!parsed?.tests?.[testIndex]) {
 				run.failed(test, new vscode.TestMessage('Test not found in file'));
 				return;
 			}
 
-			// Run the full phlow with --test flag and capture output
-			const terminal = vscode.window.createTerminal({
-				name: `Phlow Test ${testIndex + 1}`,
-				hideFromUser: true
+			const testCase = parsed.tests[testIndex];
+			const testFilter = testCase.describe || `Test ${testIndex + 1}`;
+
+			console.log(`🧪 Phlow: Running individual test with filter: "${testFilter}"`);
+
+			// Execute the command and capture the result
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(test.uri);
+			const cwd = workspaceFolder?.uri.fsPath || path.dirname(test.uri.fsPath);
+
+			const command = `phlow "${test.uri.fsPath}" --test --test-filter "${testFilter}"`;
+			console.log(`🧪 Phlow: Executing command: ${command}`);
+
+			// Execute the command using a child process to capture exit code
+			const { spawn } = require('child_process');
+
+			const process = spawn('phlow', [test.uri.fsPath, '--test', '--test-filter', testFilter], {
+				cwd: cwd,
+				stdio: ['pipe', 'pipe', 'pipe']
 			});
 
-			// For now, we'll run all tests and parse the output
-			// In a more sophisticated implementation, you could modify the phlow runner
-			// to support running individual tests
-			terminal.sendText(`phlow "${test.uri.fsPath}" --test`);
+			let stdout = '';
+			let stderr = '';
 
-			// Wait a bit for execution
-			await new Promise(resolve => setTimeout(resolve, 2000));
+			process.stdout.on('data', (data: Buffer) => {
+				stdout += data.toString();
+			});
 
-			// For this implementation, we'll assume the test passed
-			// In a real implementation, you'd need to:
-			// 1. Capture terminal output
-			// 2. Parse test results
-			// 3. Map results back to individual tests
-			run.passed(test);
+			process.stderr.on('data', (data: Buffer) => {
+				stderr += data.toString();
+			});
 
-			terminal.dispose();
+			// Wait for the process to complete
+			const exitCode = await new Promise<number>((resolve, reject) => {
+				process.on('close', (code: number) => {
+					resolve(code);
+				});
+
+				process.on('error', (error: Error) => {
+					reject(error);
+				});
+
+				// Timeout after 10 seconds
+				setTimeout(() => {
+					process.kill();
+					reject(new Error('Test execution timeout'));
+				}, 10000);
+			});
+
+			console.log(`🧪 Phlow: Test completed with exit code: ${exitCode}`);
+			console.log(`🧪 Phlow: stdout:`, stdout);
+			if (stderr) {
+				console.log(`🧪 Phlow: stderr:`, stderr);
+			}
+
+			// Determine test result based on exit code
+			if (exitCode === 0) {
+				run.passed(test);
+				console.log(`✅ Phlow: Test "${testFilter}" passed`);
+			} else {
+				const errorMessage = stderr || stdout || `Test failed with exit code ${exitCode}`;
+				run.failed(test, new vscode.TestMessage(errorMessage));
+				console.log(`❌ Phlow: Test "${testFilter}" failed: ${errorMessage}`);
+			}
 
 		} catch (error) {
+			console.error(`🧪 Phlow: Error running individual test:`, error);
 			run.failed(test, new vscode.TestMessage(`Error running test: ${error}`));
 		}
 	}

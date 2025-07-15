@@ -1,0 +1,19 @@
+
+tests:
+  - describe: "Basic Echo Test"
+    assert_eq: "execution completed"
+    
+  - describe: "Number Calculation Test"
+    main:
+      cli:
+        command: "echo '42'"
+    assert_eq: "42"
+    
+  - describe: "String Concatenation Test"
+    main:
+      cli:
+        command: "echo 'Hello World'"
+    assert_eq: "Hello World"
+
+steps:
+  - payload: "execution completed"

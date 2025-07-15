@@ -1,0 +1,25 @@
+main:
+  cli:
+    command: "echo 'Main execution'"
+
+tests:
+  - describe: "Test That Should Pass"
+    main:
+      cli:
+        command: "echo 'Hello'"
+    assert_eq: "Hello"
+    
+  - describe: "Test That Should Fail"
+    main:
+      cli:
+        command: "echo 'Hello'"
+    assert_eq: "Wrong Expected Value"
+    
+  - describe: "Another Passing Test"
+    main:
+      cli:
+        command: "echo 'World'"
+    assert_eq: "World"
+
+steps:
+  - payload: "execution completed"
