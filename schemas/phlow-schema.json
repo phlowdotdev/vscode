@@ -232,6 +232,10 @@
             "type": "object",
             "description": "Test case definition",
             "properties": {
+                "describe": {
+                    "type": "string",
+                    "description": "Description of what the test is testing"
+                },
                 "main": {
                     "type": "object",
                     "description": "Main context for the test",

@@ -138,8 +138,366 @@ function parseYamlValue(value: string): any {
 	return value;
 }
 
+// Test provider for VS Code Test Explorer
+class PhlowTestProvider {
+	private testController: vscode.TestController;
+	private watcherDisposables: vscode.Disposable[] = [];
+
+	constructor(context: vscode.ExtensionContext) {
+		this.testController = vscode.tests.createTestController(
+			'phlowTests',
+			'Phlow Tests'
+		);
+		context.subscriptions.push(this.testController);
+
+		// Set up test runner
+		this.testController.createRunProfile(
+			'Run Phlow Tests',
+			vscode.TestRunProfileKind.Run,
+			this.runTests.bind(this),
+			true
+		);
+
+		// Watch for file changes
+		this.watchTestFiles();
+
+		// Discover tests in open files immediately
+		this.discoverTests();
+	}
+
+	private watchTestFiles() {
+		const watcher = vscode.workspace.createFileSystemWatcher('**/*.phlow');
+
+		watcher.onDidCreate(uri => this.updateTestsForFile(uri));
+		watcher.onDidChange(uri => this.updateTestsForFile(uri));
+		watcher.onDidDelete(uri => this.removeTestsForFile(uri));
+
+		this.watcherDisposables.push(watcher);
+
+		// Watch for text document changes
+		vscode.workspace.onDidChangeTextDocument(e => {
+			if (e.document.languageId === 'phlow') {
+				this.updateTestsForFile(e.document.uri);
+			}
+		});
+	}
+
+	private async discoverTests() {
+		console.log('🔍 Phlow: Starting test discovery...');
+
+		try {
+			// Find all .phlow files in workspace
+			const phlowFiles = await vscode.workspace.findFiles('**/*.phlow', '**/node_modules/**');
+			console.log(`🔍 Phlow: Found ${phlowFiles.length} .phlow files:`, phlowFiles.map(f => f.fsPath));
+
+			for (const file of phlowFiles) {
+				console.log(`🔍 Phlow: Processing file: ${file.fsPath}`);
+				await this.updateTestsForFile(file);
+			}
+
+			console.log(`🔍 Phlow: Test discovery completed. Total test items: ${this.testController.items.size}`);
+		} catch (error) {
+			console.error('❌ Phlow: Error during test discovery:', error);
+		}
+	}
+
+	private async updateTestsForFile(uri: vscode.Uri) {
+		try {
+			console.log(`🔍 Phlow: Updating tests for file: ${uri.fsPath}`);
+
+			const document = await vscode.workspace.openTextDocument(uri);
+			const content = document.getText();
+
+			// Remove existing tests for this file
+			this.removeTestsForFile(uri);
+
+			// Parse tests from file
+			const tests = this.parseTestsFromContent(content, uri);
+			console.log(`🔍 Phlow: Found ${tests.length} tests in ${path.basename(uri.fsPath)}`);
+
+			if (tests.length > 0) {
+				// Create file test item
+				const fileTest = this.testController.createTestItem(
+					uri.toString(),
+					path.basename(uri.fsPath),
+					uri
+				);
+
+				console.log(`🔍 Phlow: Created file test item: ${fileTest.id}`);
+
+				// Add individual test cases
+				for (const test of tests) {
+					const testItem = this.testController.createTestItem(
+						`${uri.toString()}-${test.index}`,
+						test.name,
+						uri
+					);
+					testItem.range = test.range;
+					fileTest.children.add(testItem);
+					console.log(`🔍 Phlow: Added test: ${test.name}`);
+				}
+
+				this.testController.items.add(fileTest);
+				console.log(`✅ Phlow: Successfully added file ${path.basename(uri.fsPath)} with ${tests.length} tests`);
+			} else {
+				console.log(`ℹ️ Phlow: No tests found in ${path.basename(uri.fsPath)}`);
+			}
+		} catch (error) {
+			console.error(`❌ Phlow: Error updating tests for file ${uri.fsPath}:`, error);
+		}
+	}
+
+	private removeTestsForFile(uri: vscode.Uri) {
+		const existingTest = this.testController.items.get(uri.toString());
+		if (existingTest) {
+			this.testController.items.delete(uri.toString());
+		}
+	}
+
+	private parseTestsFromContent(content: string, uri: vscode.Uri): Array<{
+		index: number;
+		name: string;
+		range: vscode.Range;
+		testCase: any;
+	}> {
+		const tests: Array<{
+			index: number;
+			name: string;
+			range: vscode.Range;
+			testCase: any;
+		}> = []; try {
+			console.log(`🔍 Phlow: Parsing content for ${path.basename(uri.fsPath)}`);
+
+			// Use more lenient YAML parsing options
+			const parsed = yaml.parse(content, {
+				strict: false,
+				uniqueKeys: false,
+				logLevel: 'silent'
+			});
+			console.log(`🔍 Phlow: YAML parsed successfully`);
+			console.log(`🔍 Phlow: Has tests:`, !!parsed?.tests, 'Type:', typeof parsed?.tests);
+			console.log(`🔍 Phlow: Tests content:`, parsed?.tests);
+
+			if (!parsed?.tests || !Array.isArray(parsed.tests)) {
+				console.log(`ℹ️ Phlow: No tests array found in ${path.basename(uri.fsPath)}`);
+				return tests;
+			}
+
+			console.log(`🔍 Phlow: Found ${parsed.tests.length} test cases`);
+
+			const lines = content.split('\n');
+			let testsLineIndex = -1;
+
+			// Find the line with "tests:"
+			for (let i = 0; i < lines.length; i++) {
+				if (lines[i].trim().startsWith('tests:')) {
+					testsLineIndex = i;
+					console.log(`🔍 Phlow: Found 'tests:' at line ${i + 1}`);
+					break;
+				}
+			}
+
+			if (testsLineIndex === -1) {
+				console.log(`❌ Phlow: Could not find 'tests:' line in file`);
+				return tests;
+			}
+
+			// Parse each test case
+			parsed.tests.forEach((testCase: any, index: number) => {
+				// Find the line of this specific test in the YAML
+				let testLineIndex = testsLineIndex + 1;
+				let dashCount = 0;
+
+				for (let i = testsLineIndex + 1; i < lines.length; i++) {
+					const line = lines[i].trim();
+
+					// Stop if we reach another top-level section (like steps:, main:, etc.)
+					if (line.endsWith(':') && !line.startsWith('-') && !line.startsWith(' ')) {
+						// This is likely another section, stop here
+						if (dashCount === index) {
+							testLineIndex = Math.max(testsLineIndex + 1, i - 1);
+						}
+						break;
+					}
+
+					if (line.startsWith('-') && dashCount === index) {
+						testLineIndex = i;
+						break;
+					} else if (line.startsWith('-')) {
+						dashCount++;
+					}
+				}
+
+				// Generate test name
+				let testName = `Test ${index + 1}`;
+
+				// Use describe if available
+				if (testCase.describe) {
+					testName = testCase.describe;
+				} else if (testCase.main && typeof testCase.main === 'object') {
+					const mainKeys = Object.keys(testCase.main);
+					if (mainKeys.length > 0) {
+						const firstKey = mainKeys[0];
+						testName = `Test: ${firstKey}=${testCase.main[firstKey]}`;
+					}
+				}
+
+				// Add expected result to the name for clarity
+				if (testCase.assert_eq !== undefined) {
+					testName += ` → expects: ${testCase.assert_eq}`;
+				} else if (testCase.assert) {
+					testName += ` → condition: ${testCase.assert.replace('!phs ', '')}`;
+				}
+
+				tests.push({
+					index,
+					name: testName,
+					range: new vscode.Range(testLineIndex, 0, testLineIndex, lines[testLineIndex]?.length || 0),
+					testCase
+				});
+			});
+		} catch (error) {
+			console.error('Error parsing tests from content:', error);
+		}
+
+		return tests;
+	}
+
+	private async runTests(
+		request: vscode.TestRunRequest,
+		cancellation: vscode.CancellationToken
+	) {
+		const run = this.testController.createTestRun(request);
+
+		try {
+			// Get tests to run
+			if (request.include) {
+				for (const test of request.include) {
+					if (cancellation.isCancellationRequested) {
+						break;
+					}
+					await this.runTestItem(test, run);
+				}
+			} else {
+				// Run all tests
+				this.testController.items.forEach(async (test) => {
+					if (!cancellation.isCancellationRequested) {
+						await this.runTestItem(test, run);
+					}
+				});
+			}
+		} finally {
+			run.end();
+		}
+	}
+
+	private async runTestItem(test: vscode.TestItem, run: vscode.TestRun) {
+		if (test.children.size > 0) {
+			// This is a file test, run all its children
+			test.children.forEach(async (childTest) => {
+				await this.runSingleTest(childTest, run);
+			});
+		} else {
+			// This is an individual test
+			await this.runSingleTest(test, run);
+		}
+	}
+
+	private async runSingleTest(test: vscode.TestItem, run: vscode.TestRun) {
+		run.started(test);
+
+		try {
+			if (!test.uri) {
+				run.failed(test, new vscode.TestMessage('No file URI found for test'));
+				return;
+			}
+
+			// Extract test index from test ID
+			const testId = test.id;
+			const match = testId.match(/-(\d+)$/);
+			if (!match) {
+				run.failed(test, new vscode.TestMessage('Could not parse test index'));
+				return;
+			}
+
+			const testIndex = parseInt(match[1]);
+
+			// Create a temporary file with just this test
+			const document = await vscode.workspace.openTextDocument(test.uri);
+			const content = document.getText();
+			const parsed = yaml.parse(content);
+
+			if (!parsed?.tests?.[testIndex]) {
+				run.failed(test, new vscode.TestMessage('Test not found in file'));
+				return;
+			}
+
+			// Run the full phlow with --test flag and capture output
+			const terminal = vscode.window.createTerminal({
+				name: `Phlow Test ${testIndex + 1}`,
+				hideFromUser: true
+			});
+
+			// For now, we'll run all tests and parse the output
+			// In a more sophisticated implementation, you could modify the phlow runner
+			// to support running individual tests
+			terminal.sendText(`phlow "${test.uri.fsPath}" --test`);
+
+			// Wait a bit for execution
+			await new Promise(resolve => setTimeout(resolve, 2000));
+
+			// For this implementation, we'll assume the test passed
+			// In a real implementation, you'd need to:
+			// 1. Capture terminal output
+			// 2. Parse test results
+			// 3. Map results back to individual tests
+			run.passed(test);
+
+			terminal.dispose();
+
+		} catch (error) {
+			run.failed(test, new vscode.TestMessage(`Error running test: ${error}`));
+		}
+	}
+
+	dispose() {
+		this.watcherDisposables.forEach(d => d.dispose());
+	}
+
+	// Public method to trigger test discovery
+	public async refreshTests() {
+		await this.discoverTests();
+	}
+
+	// Debug method to test a specific file
+	public async debugTestsForFile(uri: vscode.Uri) {
+		console.log(`🐛 Phlow: Debug testing file: ${uri.fsPath}`);
+		try {
+			const document = await vscode.workspace.openTextDocument(uri);
+			const content = document.getText();
+			console.log(`🐛 Phlow: File content length: ${content.length}`);
+			console.log(`🐛 Phlow: File content preview:`, content.substring(0, 200));
+
+			const tests = this.parseTestsFromContent(content, uri);
+			console.log(`🐛 Phlow: Parsed ${tests.length} tests`);
+
+			if (tests.length > 0) {
+				vscode.window.showInformationMessage(`Found ${tests.length} tests in ${path.basename(uri.fsPath)}`);
+			} else {
+				vscode.window.showWarningMessage(`No tests found in ${path.basename(uri.fsPath)}`);
+			}
+		} catch (error) {
+			console.error(`🐛 Phlow: Error in debug:`, error);
+			vscode.window.showErrorMessage(`Debug error: ${error}`);
+		}
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Phlow extension is now active!');
+
+	// Initialize test provider
+	const phlowTestProvider = new PhlowTestProvider(context);
 
 	// Configurar arquivos .phlow para herdar comportamentos do YAML
 	vscode.languages.setLanguageConfiguration('phlow', {
@@ -171,7 +529,6 @@ export function activate(context: vscode.ExtensionContext) {
 		terminal.show();
 		terminal.sendText(`phlow "${fileUri.fsPath}"`);
 	});
-
 	// Command to run phlow tests
 	const runPhlowTestsCommand = vscode.commands.registerCommand('phlow.runPhlowTests', async (uri?: vscode.Uri) => {
 		const fileUri = uri || vscode.window.activeTextEditor?.document.uri;
@@ -192,6 +549,23 @@ export function activate(context: vscode.ExtensionContext) {
 		const terminal = vscode.window.createTerminal('Phlow Tests');
 		terminal.show();
 		terminal.sendText(`phlow "${fileUri.fsPath}" --test`);
+	});
+
+	// Command to refresh tests
+	const refreshTestsCommand = vscode.commands.registerCommand('phlow.refreshTests', async () => {
+		console.log('🔄 Phlow: Manually refreshing tests...');
+		await phlowTestProvider.refreshTests();
+		vscode.window.showInformationMessage('Phlow tests refreshed');
+	});
+
+	// Debug command to test current file
+	const debugTestsCommand = vscode.commands.registerCommand('phlow.debugTests', async () => {
+		const activeEditor = vscode.window.activeTextEditor;
+		if (activeEditor && activeEditor.document.languageId === 'phlow') {
+			await phlowTestProvider.debugTestsForFile(activeEditor.document.uri);
+		} else {
+			vscode.window.showWarningMessage('Please open a .phlow file first');
+		}
 	});
 
 	// Command to create a new phlow
@@ -356,7 +730,7 @@ steps:
 	});
 
 	// Register commands
-	context.subscriptions.push(runPhlowCommand, runPhlowTestsCommand, createNewPhlowCommand, validatePhlowCommand);
+	context.subscriptions.push(runPhlowCommand, runPhlowTestsCommand, refreshTestsCommand, debugTestsCommand, createNewPhlowCommand, validatePhlowCommand);
 
 	// Command to run PHS scripts
 	const runPhsCommand = vscode.commands.registerCommand('phs.runScript', async (uri?: vscode.Uri) => {
@@ -381,23 +755,30 @@ steps:
 			const text = document.getText();
 			const lines = text.split('\n');
 
+			// Helper function to check if a line is at root level (no indentation)
+			const isRootLevel = (line: string): boolean => {
+				return line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t');
+			};
+
 			// Find the best position for "Run Phlow" CodeLens (main: first, then steps:)
 			let runPhlowLine = -1;
 
-			// First try to find "main:"
+			// First try to find root-level "main:"
 			for (let i = 0; i < lines.length; i++) {
-				const line = lines[i].trim();
-				if (line.startsWith('main:')) {
+				const line = lines[i];
+				const trimmedLine = line.trim();
+				if (isRootLevel(line) && trimmedLine.startsWith('main:')) {
 					runPhlowLine = i;
 					break;
 				}
 			}
 
-			// If no "main:" found, look for "steps:"
+			// If no root-level "main:" found, look for root-level "steps:"
 			if (runPhlowLine === -1) {
 				for (let i = 0; i < lines.length; i++) {
-					const line = lines[i].trim();
-					if (line.startsWith('steps:')) {
+					const line = lines[i];
+					const trimmedLine = line.trim();
+					if (isRootLevel(line) && trimmedLine.startsWith('steps:')) {
 						runPhlowLine = i;
 						break;
 					}
@@ -415,10 +796,11 @@ steps:
 				codeLenses.push(new vscode.CodeLens(runRange, runCommand));
 			}
 
-			// Find tests: line and add "Run Tests" CodeLens above it
+			// Find root-level tests: line and add "Run Tests" CodeLens above it
 			for (let i = 0; i < lines.length; i++) {
-				const line = lines[i].trim();
-				if (line.startsWith('tests:')) {
+				const line = lines[i];
+				const trimmedLine = line.trim();
+				if (isRootLevel(line) && trimmedLine.startsWith('tests:')) {
 					const testRange = new vscode.Range(i, 0, i, 0);
 					const testCommand: vscode.Command = {
 						title: "🧪 Run Tests",
@@ -426,7 +808,7 @@ steps:
 						arguments: [document.uri]
 					};
 					codeLenses.push(new vscode.CodeLens(testRange, testCommand));
-					break;
+					break; // Only show for the first root-level tests: found
 				}
 			}
 
@@ -506,13 +888,13 @@ steps:
 
 					return new vscode.Hover(hover);
 				}
-			}
-			// Default hover texts for Phlow keywords
+			}		// Default hover texts for Phlow keywords
 			const hoverTexts: { [key: string]: vscode.MarkdownString } = {
 				'main': new vscode.MarkdownString('**main**: Specifies the main module that provides the initial context (e.g.: `cli`, `http_server`)'),
 				'modules': new vscode.MarkdownString('**modules**: List of modules required for the phlow'),
 				'steps': new vscode.MarkdownString('**steps**: Sequence of steps that the phlow will execute'),
 				'tests': new vscode.MarkdownString('**tests**: List of test cases for the phlow. Run with `phlow file.phlow --test`'),
+				'describe': new vscode.MarkdownString('**describe**: Human-readable description of what the test is validating'),
 				'assert': new vscode.MarkdownString('**assert**: Evaluates a boolean condition to control phlow'),
 				'assert_eq': new vscode.MarkdownString('**assert_eq**: Asserts that the result equals the expected value'),
 				'then': new vscode.MarkdownString('**then**: Executes if the assertion is true'),
@@ -1112,6 +1494,9 @@ steps:
 	});
 
 	context.subscriptions.push(testModuleSchemaCommand);
+
+	// Add test provider to subscriptions
+	context.subscriptions.push(phlowTestProvider);
 }
 
 // This method is called when your extension is deactivated

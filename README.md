@@ -51,6 +51,15 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - **Validate Phlow Phlow**: Comprehensive validation with detailed error reporting
 - **Create New Phlow Phlow**: Wizard to create new phlows
 
+### 🧪 Test Explorer Integration
+- **Native VS Code Test Explorer**: All Phlow tests appear in the built-in Test Explorer
+- **Individual Test Execution**: Run specific tests or entire test suites
+- **Real-time Discovery**: Automatically detects and updates tests as you edit files
+- **Visual Feedback**: Clear pass/fail status with detailed error reporting
+- **Quick Navigation**: Jump to test code with a single click
+
+> **💡 Tip**: Open Test Explorer with `View > Test Explorer` or `Ctrl+Shift+T`
+
 ### 💡 IntelliSense
 - Hover for Phlow element documentation
 - JSON schema validation

@@ -103,6 +103,16 @@
         "category": "Phlow"
       },
       {
+        "command": "phlow.refreshTests",
+        "title": "Refresh Tests",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.debugTests",
+        "title": "Debug Tests (Current File)",
+        "category": "Phlow"
+      },
+      {
         "command": "phlow.validatePhlow",
         "title": "Validate Phlow Phlow",
         "category": "Phlow"

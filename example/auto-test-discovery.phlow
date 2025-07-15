@@ -1,0 +1,16 @@
+main:
+  cli:
+    command: "echo 'Hello World'"
+
+tests:
+  - describe: "Test CLI echo command"
+    main:
+      cli:
+        command: "echo 'Hello Test'"
+    assert_eq: "Hello Test"
+    
+  - describe: "Test number calculation"
+    main:
+      cli:
+        command: "echo '42'"
+    assert_eq: "42"

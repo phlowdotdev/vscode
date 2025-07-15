@@ -158,35 +158,39 @@
         "prefix": "phlow-tests",
         "body": [
             "tests:",
-            "  - main:",
-            "      ${1:param_name}: ${2:param_value}",
-            "    payload: ${3:initial_payload}",
-            "    assert_eq: ${4:expected_result}",
-            "  - main:",
-            "      ${5:param_name}: ${6:param_value}",
-            "    payload: ${7:initial_payload}",
-            "    assert: !phs ${8:condition_expression}"
+            "  - describe: ${1:Test description}",
+            "    main:",
+            "      ${2:param_name}: ${3:param_value}",
+            "    payload: ${4:initial_payload}",
+            "    assert_eq: ${5:expected_result}",
+            "  - describe: ${6:Another test description}",
+            "    main:",
+            "      ${7:param_name}: ${8:param_value}",
+            "    payload: ${9:initial_payload}",
+            "    assert: !phs ${10:condition_expression}"
         ],
-        "description": "Test cases section for Phlow"
+        "description": "Test cases section for Phlow with descriptions"
     },
     "Phlow Test Case - Assert Equals": {
         "prefix": "phlow-test-eq",
         "body": [
-            "- main:",
-            "    ${1:param_name}: ${2:param_value}",
-            "  payload: ${3:initial_payload}",
-            "  assert_eq: ${4:expected_result}"
+            "- describe: ${1:Test description}",
+            "  main:",
+            "    ${2:param_name}: ${3:param_value}",
+            "  payload: ${4:initial_payload}",
+            "  assert_eq: ${5:expected_result}"
         ],
-        "description": "Test case with assert_eq"
+        "description": "Test case with assert_eq and description"
     },
     "Phlow Test Case - Assert Expression": {
         "prefix": "phlow-test-assert",
         "body": [
-            "- main:",
-            "    ${1:param_name}: ${2:param_value}",
-            "  payload: ${3:initial_payload}",
-            "  assert: !phs ${4:condition_expression}"
+            "- describe: ${1:Test description}",
+            "  main:",
+            "    ${2:param_name}: ${3:param_value}",
+            "  payload: ${4:initial_payload}",
+            "  assert: !phs ${5:condition_expression}"
         ],
-        "description": "Test case with assert expression"
+        "description": "Test case with assert expression and description"
     }
 }

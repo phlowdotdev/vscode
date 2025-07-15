@@ -81,7 +81,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.phlow",
-                    "match": "\\b(main|modules|steps|tests|assert|assert_eq|then|else|return|payload|use|to|label|id|with|input|output):\\s*",
+                    "match": "\\b(main|modules|steps|tests|describe|assert|assert_eq|then|else|return|payload|use|to|label|id|with|input|output):\\s*",
                     "captures": {
                         "1": {
                             "name": "entity.name.tag.yaml"
