@@ -2,7 +2,7 @@
   "name": "phlow",
   "displayName": "Phlow",
   "description": "Language support for Phlow - Low Code Rust runtime for modular backends",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "repository": "https://github.com/phlowdotdev/vscode",
   "publisher": "phlow",
   "icon": "icons/phlow.png",
@@ -125,6 +125,11 @@
       {
         "command": "phlow.testModuleSchema",
         "title": "Test Module Schema (Debug)",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.clearModuleCache",
+        "title": "Clear Module Cache",
         "category": "Phlow"
       },
       {

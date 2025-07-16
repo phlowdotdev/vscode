@@ -31,17 +31,83 @@ interface ModuleSchema {
 }
 
 const moduleSchemaCache = new Map<string, ModuleSchema>();
+const moduleNotFoundCache = new Set<string>(); // Cache para módulos que não existem
+let availableModulesCache: string[] | null = null; // Cache para módulos disponíveis
 
-// Known modules from Phlow repository
-const KNOWN_MODULES = [
-	'cli', 'amqp', 'http_request', 'http_server', 'postgres', 'log',
-	'consumer', 'producer', 'file', 'redis', 'mongodb', 'smtp',
-	'jwt', 'crypto', 'template', 'validator'
-];
+// Função para buscar lista de módulos disponíveis no GitHub
+async function fetchAvailableModules(): Promise<string[]> {
+	if (availableModulesCache) {
+		return availableModulesCache;
+	}
+
+	try {
+		const url = 'https://api.github.com/repos/phlowdotdev/phlow/contents/modules';
+
+		return new Promise((resolve) => {
+			https.get(url, (res) => {
+				let data = '';
+				res.on('data', (chunk) => data += chunk);
+				res.on('end', () => {
+					try {
+						const contents = JSON.parse(data);
+						if (Array.isArray(contents)) {
+							const modules = contents
+								.filter((item: any) => item.type === 'dir')
+								.map((item: any) => item.name);
+							availableModulesCache = modules;
+							resolve(modules);
+						} else {
+							// Fallback para módulos conhecidos se a API falhar
+							const fallbackModules = [
+								'cli', 'amqp', 'http_request', 'http_server', 'postgres', 'log',
+								'consumer', 'producer', 'file', 'redis', 'mongodb', 'smtp',
+								'jwt', 'crypto', 'template', 'validator'
+							];
+							availableModulesCache = fallbackModules;
+							resolve(fallbackModules);
+						}
+					} catch (error) {
+						// Fallback para módulos conhecidos se houver erro
+						const fallbackModules = [
+							'cli', 'amqp', 'http_request', 'http_server', 'postgres', 'log',
+							'consumer', 'producer', 'file', 'redis', 'mongodb', 'smtp',
+							'jwt', 'crypto', 'template', 'validator'
+						];
+						availableModulesCache = fallbackModules;
+						resolve(fallbackModules);
+					}
+				});
+			}).on('error', () => {
+				// Fallback para módulos conhecidos se houver erro de rede
+				const fallbackModules = [
+					'cli', 'amqp', 'http_request', 'http_server', 'postgres', 'log',
+					'consumer', 'producer', 'file', 'redis', 'mongodb', 'smtp',
+					'jwt', 'crypto', 'template', 'validator'
+				];
+				availableModulesCache = fallbackModules;
+				resolve(fallbackModules);
+			});
+		});
+	} catch (error) {
+		// Fallback para módulos conhecidos
+		const fallbackModules = [
+			'cli', 'amqp', 'http_request', 'http_server', 'postgres', 'log',
+			'consumer', 'producer', 'file', 'redis', 'mongodb', 'smtp',
+			'jwt', 'crypto', 'template', 'validator'
+		];
+		availableModulesCache = fallbackModules;
+		return fallbackModules;
+	}
+}
 
 async function fetchModuleSchema(moduleName: string): Promise<ModuleSchema | null> {
 	if (moduleSchemaCache.has(moduleName)) {
 		return moduleSchemaCache.get(moduleName)!;
+	}
+
+	// Se já tentamos buscar este módulo e não foi encontrado, não tente novamente
+	if (moduleNotFoundCache.has(moduleName)) {
+		return null;
 	}
 
 	try {
@@ -53,21 +119,34 @@ async function fetchModuleSchema(moduleName: string): Promise<ModuleSchema | nul
 				res.on('data', (chunk) => data += chunk);
 				res.on('end', () => {
 					try {
-						// Simple YAML parser for the schema (could use a proper YAML library)
+						if (res.statusCode === 404) {
+							// Módulo não encontrado, adiciona ao cache de não encontrados
+							moduleNotFoundCache.add(moduleName);
+							resolve(null);
+							return;
+						}
+
 						const schema = parseModuleYaml(data);
 						if (schema) {
 							moduleSchemaCache.set(moduleName, schema);
 							resolve(schema);
 						} else {
+							// Se não conseguiu fazer parse, considera como não encontrado
+							moduleNotFoundCache.add(moduleName);
 							resolve(null);
 						}
 					} catch (error) {
+						moduleNotFoundCache.add(moduleName);
 						resolve(null);
 					}
 				});
-			}).on('error', () => resolve(null));
+			}).on('error', () => {
+				moduleNotFoundCache.add(moduleName);
+				resolve(null);
+			});
 		});
 	} catch (error) {
+		moduleNotFoundCache.add(moduleName);
 		return null;
 	}
 }
@@ -127,15 +206,6 @@ function parseModuleYaml(yamlContent: string): ModuleSchema | null {
 		console.error('Error parsing module YAML:', error);
 		return null;
 	}
-}
-
-function parseYamlValue(value: string): any {
-	if (!value) return '';
-	value = value.replace(/['"]/g, '');
-	if (value === 'true') return true;
-	if (value === 'false') return false;
-	if (!isNaN(Number(value))) return Number(value);
-	return value;
 }
 
 // Test provider for VS Code Test Explorer
@@ -994,8 +1064,8 @@ steps:
 			const wordText = document.getText(word);
 			const line = document.lineAt(position.line).text;
 
-			// Check if this is a module name
-			if (line.includes('module:') && KNOWN_MODULES.includes(wordText)) {
+			// Check if this is a module name - try to fetch schema for any module
+			if (line.includes('module:')) {
 				const schema = await fetchModuleSchema(wordText);
 				if (schema) {
 					const hover = new vscode.MarkdownString();
@@ -1160,7 +1230,8 @@ steps:
 
 				// Module name completions
 				if (linePrefix.includes('module:')) {
-					return KNOWN_MODULES.map(moduleName => {
+					const availableModules = await fetchAvailableModules();
+					return availableModules.map((moduleName: string) => {
 						const completion = new vscode.CompletionItem(moduleName, vscode.CompletionItemKind.Module);
 						completion.detail = `Phlow ${moduleName} module`;
 						completion.insertText = moduleName;
@@ -1191,22 +1262,14 @@ steps:
 		const modules = await parseDocumentModules(lines);
 
 		for (const moduleInfo of modules) {
-			// Validate module name
-			if (!KNOWN_MODULES.includes(moduleInfo.name)) {
-				diagnostics.push(new vscode.Diagnostic(
-					moduleInfo.nameRange,
-					`Unknown module '${moduleInfo.name}'. Available modules: ${KNOWN_MODULES.join(', ')}`,
-					vscode.DiagnosticSeverity.Warning
-				));
-				continue;
-			}
-
-			// Validate module properties
+			// Tenta buscar o schema do módulo dinamicamente
+			// Se não existir, o fetchModuleSchema retornará null e será ignorado
 			const schema = await fetchModuleSchema(moduleInfo.name);
 			if (schema && moduleInfo.withProperties) {
 				const propertyDiagnostics = await validateModuleProperties(moduleInfo, schema, lines);
 				diagnostics.push(...propertyDiagnostics);
 			}
+			// Se o schema não existir, simplesmente ignora (não mostra erro)
 		}
 
 		diagnosticCollection.set(document.uri, diagnostics);
@@ -1586,10 +1649,18 @@ steps:
 
 	context.subscriptions.push(foldingProvider);
 
+	// Função para limpar caches (útil para desenvolvimento/debugging)
+	const clearCacheCommand = vscode.commands.registerCommand('phlow.clearModuleCache', () => {
+		moduleSchemaCache.clear();
+		moduleNotFoundCache.clear();
+		availableModulesCache = null;
+		vscode.window.showInformationMessage('Module caches cleared successfully!');
+	});
+
 	// Debug command to test module schema parsing
 	const testModuleSchemaCommand = vscode.commands.registerCommand('phlow.testModuleSchema', async () => {
 		const moduleName = await vscode.window.showInputBox({
-			prompt: 'Enter module name to test',
+			prompt: 'Enter module name to test (any module name)',
 			placeHolder: 'cli',
 			value: 'cli'
 		});
@@ -1601,7 +1672,7 @@ steps:
 			title: `Testing schema for module: ${moduleName}`,
 			cancellable: false
 		}, async (progress) => {
-			progress.report({ message: "Fetching schema..." });
+			progress.report({ message: "Fetching schema from GitHub..." });
 
 			const schema = await fetchModuleSchema(moduleName);
 
@@ -1619,12 +1690,12 @@ steps:
 
 				vscode.window.showInformationMessage(message);
 			} else {
-				vscode.window.showErrorMessage(`❌ Failed to load schema for module: ${moduleName}`);
+				vscode.window.showErrorMessage(`❌ Module '${moduleName}' not found in Phlow repository. Make sure the module name is correct.`);
 			}
 		});
 	});
 
-	context.subscriptions.push(testModuleSchemaCommand);
+	context.subscriptions.push(clearCacheCommand, testModuleSchemaCommand);
 
 	// Add test provider to subscriptions
 	context.subscriptions.push(phlowTestProvider);

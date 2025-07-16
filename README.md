@@ -38,18 +38,21 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - And much more...
 
 ### ✨ Enhanced Module Support
-- **Real-time module validation** - Validates known modules from the Phlow repository
+- **Dynamic module validation** - Validates any module from the Phlow repository
+- **Automatic module discovery** - Fetches available modules from GitHub API
 - **Smart autocompletion** for module properties based on their schemas
 - **Enhanced hover documentation** with module-specific information and links
 - **Dynamic schema fetching** from GitHub repository for up-to-date module information
 - **Property validation** for module `with` configurations
 - **Required property detection** and warnings
+- **No module restrictions** - Use any module that exists in the Phlow repository
 
 ### 🔧 Commands
 - **Run Phlow Phlow**: Execute the current phlow in terminal
 - **Run Phlow Tests**: Execute the phlow tests using `phlow file.phlow --test`
 - **Validate Phlow Phlow**: Comprehensive validation with detailed error reporting
 - **Create New Phlow Phlow**: Wizard to create new phlows
+- **Clear Module Cache**: Clear cached module schemas (useful for development)
 
 ### 🧪 Test Explorer Integration
 - **Native VS Code Test Explorer**: All Phlow tests appear in the built-in Test Explorer
