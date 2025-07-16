@@ -73,8 +73,8 @@
         ]
     ],
     "indentationRules": {
-        "increaseIndentPattern": "^((?!\\/\\/).)*(\\{[^}]*|\\([^)]*|\\[[^\\]]*)$",
-        "decreaseIndentPattern": "^((?!.*?\\/\\*).*\\*/)?\\s*[\\}\\]\\)].*$"
+        "increaseIndentPattern": "^.*\\{[^}]*$|^.*(if|else|for|while|fn|loop)\\s*.*\\{?\\s*$",
+        "decreaseIndentPattern": "^\\s*\\}.*$"
     },
     "folding": {
         "markers": {

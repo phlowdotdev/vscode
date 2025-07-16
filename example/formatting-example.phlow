@@ -1,0 +1,48 @@
+# Phlow formatting example with proper 2-space indentation
+main: cli
+name: formatting-example
+version: 1.0.0
+description: Example of proper Phlow formatting
+author: Phlow Team
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      args:
+        - name: name
+          help: User name
+          index: 1
+          type: string
+          required: true
+        - name: age
+          help: User age
+          index: 2
+          type: number
+          required: false
+
+steps:
+  - payload:
+      user_name: !phs main.name
+      user_age: !phs main.age ?? 25
+      greeting: !phs `Hello, ${main.name}!`
+  - use: log
+    input:
+      level: info
+      message: !phs `Processing user: ${payload.user_name}`
+  - return: !phs payload
+
+tests:
+  - describe: Test basic greeting
+    main:
+      name: "World"
+      age: 30
+    assert_eq:
+      user_name: "World"
+      user_age: 30
+      greeting: "Hello, World!"
+  - describe: Test default age
+    main:
+      name: "Alice"
+    assert: !phs payload.user_age == 25

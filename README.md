@@ -7,20 +7,23 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 ### 🎨 Full YAML Compatibility
 - **`.phlow` files behave exactly like YAML**
 - Complete syntax highlighting for YAML
-- Automatic and intelligent indentation
+- **Automatic 2-space indentation** (YAML standard)
 - Block and structure folding
 - Real-time YAML syntax validation
 - Support for all YAML data types (strings, numbers, booleans, arrays, objects)
 - Multi-line strings (`|` and `>`)
 - Comments and nested structures
+- **Format on save and type** enabled by default
 
 ### ✨ Complete PHS (Phlow Script) Support
 - **`.phs` files with complete syntax highlighting** (based on Rhai)
+- **Automatic 4-space indentation** (Rust standard)
 - **Inline PHS in `.phlow` and `.yaml` files** after `!phs` directives
 - **Autocomplete and snippets** for Rhai/PHS syntax
 - **Hover documentation** for PHS functions and variables
 - **Automatic indentation** and **folding** for code blocks
 - **Phlow-specific functions**: `main`, `payload`, `steps`, `envs`
+- **Format on save and type** enabled by default
 
 ### ✨ Phlow-Specific Features
 - Special highlighting for Phlow keywords (`main`, `modules`, `steps`, etc.)
@@ -52,6 +55,7 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - **Run Phlow Tests**: Execute the phlow tests using `phlow file.phlow --test`
 - **Validate Phlow Phlow**: Comprehensive validation with detailed error reporting
 - **Create New Phlow Phlow**: Wizard to create new phlows
+- **Format Document (Phlow Style)**: Apply proper indentation (2 spaces for .phlow, 4 for .phs)
 - **Clear Module Cache**: Clear cached module schemas (useful for development)
 
 ### 🧪 Test Explorer Integration
@@ -235,6 +239,15 @@ The extension works automatically with `.phlow` files, which are treated as **co
 - ✅ **All YAML functionality**: indentation, folding, syntax highlighting
 - ✅ **Phlow-specific features**: keywords, directives, validation
 - ✅ **Complete compatibility**: `.phlow` files are valid YAML
+- ✅ **Automatic formatting**: 2-space indentation for `.phlow`, 4-space for `.phs`
+
+### Indentation Standards
+- **`.phlow` files**: 2 spaces (YAML standard)
+- **`.phs` files**: 4 spaces (Rust standard)
+- **Auto-formatting**: Enabled by default (format on save, format on type)
+- **Manual formatting**: Use `Ctrl+Shift+P` → "Format Document (Phlow Style)"
+
+> **📖 See [FORMATTING_GUIDE.md](./FORMATTING_GUIDE.md) for detailed formatting rules and examples**
 
 For the best experience:
 

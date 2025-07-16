@@ -700,21 +700,21 @@ export function activate(context: vscode.ExtensionContext) {
 	// Initialize test provider
 	const phlowTestProvider = new PhlowTestProvider(context);
 
-	// Configurar arquivos .phlow para herdar comportamentos do YAML
+	// Configurar arquivos .phlow para herdar comportamentos do YAML com indentação de 2 espaços
 	vscode.languages.setLanguageConfiguration('phlow', {
 		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/,
 		indentationRules: {
-			increaseIndentPattern: /^(\s*(- ))?.*:(\s)*$/,
+			increaseIndentPattern: /^(\s*(- ))?.*:(\s)*$|^(\s*)(-\s+)?.*:(\s)*$|^(\s*)(steps|modules|tests|then|else|with|properties|args)\s*:/,
 			decreaseIndentPattern: /^\s*\}\s*$/
 		}
 	});
 
-	// Configurar arquivos .phs para se comportarem como Rhai
+	// Configurar arquivos .phs para se comportarem como Rhai/Rust com indentação de 4 espaços
 	vscode.languages.setLanguageConfiguration('phs', {
 		wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/,
 		indentationRules: {
-			increaseIndentPattern: /\{[^}]*$/,
-			decreaseIndentPattern: /^\s*\}/
+			increaseIndentPattern: /^.*\{[^}]*$|^.*(if|else|for|while|fn|loop)\s*.*\{?\s*$/,
+			decreaseIndentPattern: /^\s*\}.*$/
 		}
 	});
 
@@ -1657,6 +1657,31 @@ steps:
 		vscode.window.showInformationMessage('Module caches cleared successfully!');
 	});
 
+	// Comando para aplicar formatação padrão aos arquivos Phlow
+	const formatPhlowCommand = vscode.commands.registerCommand('phlow.formatDocument', async () => {
+		const activeEditor = vscode.window.activeTextEditor;
+		if (!activeEditor) {
+			vscode.window.showWarningMessage('No active editor found');
+			return;
+		}
+
+		const document = activeEditor.document;
+		if (document.languageId !== 'phlow' && document.languageId !== 'phs') {
+			vscode.window.showWarningMessage('This command only works with .phlow and .phs files');
+			return;
+		}
+
+		// Aplicar formatação
+		await vscode.commands.executeCommand('editor.action.formatDocument');
+
+		// Aplicar configurações de indentação específicas
+		const tabSize = document.languageId === 'phlow' ? 2 : 4;
+		await vscode.commands.executeCommand('editor.action.indentationToSpaces');
+		await vscode.commands.executeCommand('editor.action.changeTabDisplaySize', tabSize);
+
+		vscode.window.showInformationMessage(`Document formatted with ${tabSize}-space indentation`);
+	});
+
 	// Debug command to test module schema parsing
 	const testModuleSchemaCommand = vscode.commands.registerCommand('phlow.testModuleSchema', async () => {
 		const moduleName = await vscode.window.showInputBox({
@@ -1695,7 +1720,7 @@ steps:
 		});
 	});
 
-	context.subscriptions.push(clearCacheCommand, testModuleSchemaCommand);
+	context.subscriptions.push(clearCacheCommand, formatPhlowCommand, testModuleSchemaCommand);
 
 	// Add test provider to subscriptions
 	context.subscriptions.push(phlowTestProvider);

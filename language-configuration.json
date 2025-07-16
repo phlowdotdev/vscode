@@ -65,7 +65,7 @@
         ]
     ],
     "indentationRules": {
-        "increaseIndentPattern": "^\\s*(-\\s+)?.*:[ ]*$|^\\s*-[ ]*$",
+        "increaseIndentPattern": "^\\s*(-\\s+)?.*:[ ]*$|^\\s*-[ ]*$|^\\s*(steps|modules|tests|then|else|with|properties|args)\\s*:",
         "decreaseIndentPattern": "^\\s*\\}\\s*$"
     },
     "folding": {
