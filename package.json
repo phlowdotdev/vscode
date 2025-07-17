@@ -2,7 +2,7 @@
   "name": "phlow",
   "displayName": "Phlow",
   "description": "Language support for Phlow - Low Code Rust runtime for modular backends",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "repository": "https://github.com/phlowdotdev/vscode",
   "publisher": "phlow",
   "icon": "icons/phlow.png",
@@ -163,11 +163,16 @@
         "title": "Format Document (Phlow Style)",
         "category": "Phlow"
       },
-      {
-        "command": "phs.runScript",
-        "title": "Run PHS Script",
-        "category": "PHS"
-      }
+        {
+          "command": "phs.runScript",
+          "title": "Run PHS Script",
+          "category": "PHS"
+        },
+        {
+          "command": "phlow.reloadExtension",
+          "title": "Reload Extension",
+          "category": "Phlow"
+        }
     ],
     "menus": {
       "explorer/context": [

@@ -1,0 +1,58 @@
+main: cli
+name: PHS Syntax Test
+version: 1.0.0
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      args:
+        - name: input
+          type: string
+          required: true
+
+steps:
+  # Test 1: Simple inline PHS
+  - assert: !phs main.input && main.input.len() > 0
+  
+  # Test 2: PHS with keywords and functions
+  - payload: !phs if main.input == "test" then "success" else "failure"
+  
+  # Test 3: PHS with builtin functions
+  - payload: !phs main.input.to_upper().len()
+  
+  # Test 4: PHS with Phlow variables
+  - payload: !phs main.input + " processed by " + payload.to_string()
+  
+  # Test 5: PHS block with backticks
+  - payload: !phs `{
+      original: main.input,
+      processed: main.input.to_upper(),
+      length: main.input.len(),
+      timestamp: timestamp(),
+      valid: true
+    }`
+  
+  # Test 6: PHS multiline
+  - payload: !phs |
+    let result = #{
+      input: main.input,
+      length: main.input.len()
+    };
+    
+    // Comment test
+    if result.length > 0 {
+      result.processed = result.input.to_upper();
+      result.valid = true;
+    } else {
+      result.processed = "";
+      result.valid = false;
+    }
+    
+    return result;
+
+tests:
+  - describe: Test PHS syntax
+    main:
+      input: "hello"
+    assert: !phs payload.valid && payload.processed == "HELLO"

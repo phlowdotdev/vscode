@@ -1,0 +1,78 @@
+main: cli
+name: Enhanced PHS Inline Demo
+version: 1.0.0
+description: Demonstrates enhanced PHS inline features with full syntax support
+author: Phlow Team
+
+modules:
+  - module: cli
+    version: latest
+    with:
+      additional_args: false
+      args:
+        - name: input
+          index: 1
+          type: string
+          required: true
+        - name: multiplier
+          index: 2
+          type: number
+          required: false
+          default: 2
+
+steps:
+  # Basic inline PHS with variables
+  - assert: !phs main.input && main.input.len() > 0
+    then:
+      # Complex PHS with functions and conditionals
+      - payload: !phs `{
+          original: main.input,
+          multiplier: main.multiplier ?? 2,
+          processed: if main.input.len() > 10 {
+            main.input.to_upper()
+          } else {
+            main.input.to_lower()
+          },
+          result: main.input.len() * (main.multiplier ?? 2)
+        }`
+
+      # More complex inline PHS with string interpolation
+      - return: !phs `Final result: ${payload.processed} (length: ${payload.result})`
+    else:
+      # Simple inline PHS with error handling
+      - return: !phs `Error: Invalid input '${main.input}' - must be non-empty string`
+
+  # Alternative approach with multiline PHS
+  - payload: !phs |
+    let result = #{
+      input: main.input,
+      length: main.input.len(),
+      multiplier: main.multiplier ?? 2
+    };
+
+    if result.length == 0 {
+      result.error = "Empty input not allowed";
+    } else {
+      result.processed = result.input.to_upper();
+      result.final = result.length * result.multiplier;
+    }
+
+    return result;
+
+# Test cases using PHS inline
+tests:
+  - describe: Basic PHS inline functionality
+    main:
+      input: "hello"
+      multiplier: 3
+    assert: !phs payload.includes("HELLO")
+
+  - describe: PHS with conditionals
+    main:
+      input: "test"
+    assert_eq: "Final result: test (length: 8)"
+
+  - describe: PHS error handling
+    main:
+      input: ""
+    assert: !phs payload.includes("Error: Invalid input")

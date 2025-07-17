@@ -1724,6 +1724,172 @@ steps:
 
 	// Add test provider to subscriptions
 	context.subscriptions.push(phlowTestProvider);
+
+	// PHS inline completion provider
+	const phsInlineCompletionProvider = vscode.languages.registerCompletionItemProvider(
+		phlowDocumentSelector,
+		{
+			provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
+				const lineText = document.lineAt(position).text;
+				const linePrefix = lineText.substring(0, position.character);
+
+				// Check if we're in a PHS context (!phs)
+				const phsMatch = linePrefix.match(/!phs\s+/);
+				if (!phsMatch) {
+					return undefined;
+				}
+
+				// Get the PHS part after !phs
+				const phsStartIndex = phsMatch.index! + phsMatch[0].length;
+				const phsPrefix = linePrefix.substring(phsStartIndex);
+
+				// PHS completions
+				const completions: vscode.CompletionItem[] = [];
+
+				// Phlow-specific variables
+				const phlowVariables = [
+					{ name: 'main', detail: 'Main module arguments and configuration' },
+					{ name: 'payload', detail: 'Current step payload data' },
+					{ name: 'steps', detail: 'Access to steps context' },
+					{ name: 'envs', detail: 'Environment variables' }
+				];
+
+				// PHS keywords
+				const phsKeywords = [
+					{ name: 'if', detail: 'Conditional expression' },
+					{ name: 'else', detail: 'Alternative condition' },
+					{ name: 'let', detail: 'Variable declaration' },
+					{ name: 'fn', detail: 'Function definition' },
+					{ name: 'return', detail: 'Return statement' },
+					{ name: 'true', detail: 'Boolean true' },
+					{ name: 'false', detail: 'Boolean false' },
+					{ name: 'null', detail: 'Null value' }
+				];
+
+				// PHS built-in functions
+				const phsFunctions = [
+					{ name: 'print', detail: 'Print to console' },
+					{ name: 'debug', detail: 'Debug output' },
+					{ name: 'type_of', detail: 'Get type of value' },
+					{ name: 'len', detail: 'Get length of array/string' },
+					{ name: 'is_empty', detail: 'Check if empty' },
+					{ name: 'contains', detail: 'Check if contains value' },
+					{ name: 'push', detail: 'Add to array' },
+					{ name: 'pop', detail: 'Remove from array' },
+					{ name: 'split', detail: 'Split string' },
+					{ name: 'join', detail: 'Join array elements' },
+					{ name: 'trim', detail: 'Remove whitespace' },
+					{ name: 'to_upper', detail: 'Convert to uppercase' },
+					{ name: 'to_lower', detail: 'Convert to lowercase' },
+					{ name: 'to_string', detail: 'Convert to string' },
+					{ name: 'to_int', detail: 'Convert to integer' },
+					{ name: 'to_float', detail: 'Convert to float' },
+					{ name: 'timestamp', detail: 'Get current timestamp' }
+				];
+
+				// Phlow-specific functions
+				const phlowFunctions = [
+					{ name: 'log', detail: 'Log message with level' },
+					{ name: 'query', detail: 'Database query' },
+					{ name: 'producer', detail: 'Message producer' },
+					{ name: 'consumer', detail: 'Message consumer' }
+				];
+
+				// Add completions based on context
+				if (phsPrefix.length === 0 || phsPrefix.match(/^\s*$/)) {
+					// Beginning of PHS expression, show all options
+					phlowVariables.forEach(item => {
+						const completion = new vscode.CompletionItem(item.name, vscode.CompletionItemKind.Variable);
+						completion.detail = item.detail;
+						completion.insertText = item.name;
+						completions.push(completion);
+					});
+
+					phsKeywords.forEach(item => {
+						const completion = new vscode.CompletionItem(item.name, vscode.CompletionItemKind.Keyword);
+						completion.detail = item.detail;
+						completion.insertText = item.name;
+						completions.push(completion);
+					});
+
+					phsFunctions.forEach(item => {
+						const completion = new vscode.CompletionItem(item.name, vscode.CompletionItemKind.Function);
+						completion.detail = item.detail;
+						completion.insertText = `${item.name}(`;
+						completions.push(completion);
+					});
+
+					phlowFunctions.forEach(item => {
+						const completion = new vscode.CompletionItem(item.name, vscode.CompletionItemKind.Function);
+						completion.detail = item.detail;
+						completion.insertText = `${item.name}(`;
+						completions.push(completion);
+					});
+				}
+
+				// Property access completions (e.g., main.something)
+				const dotMatch = phsPrefix.match(/(main|payload|steps|envs)\.(\w*)$/);
+				if (dotMatch) {
+					const objectName = dotMatch[1];
+					const partialProperty = dotMatch[2];
+
+					// Common properties based on object type
+					let properties: string[] = [];
+					switch (objectName) {
+						case 'main':
+							properties = ['name', 'version', 'description', 'args', 'body', 'headers', 'query'];
+							break;
+						case 'payload':
+							properties = ['data', 'type', 'status', 'result', 'error'];
+							break;
+						case 'steps':
+							properties = ['current', 'previous', 'next', 'index'];
+							break;
+						case 'envs':
+							properties = ['DATABASE_URL', 'API_KEY', 'PORT', 'HOST'];
+							break;
+					}
+
+					properties.forEach(prop => {
+						if (prop.startsWith(partialProperty)) {
+							const completion = new vscode.CompletionItem(prop, vscode.CompletionItemKind.Property);
+							completion.detail = `${objectName}.${prop}`;
+							completion.insertText = prop;
+							completions.push(completion);
+						}
+					});
+				}
+
+				return completions;
+			}
+		},
+		'.',  // Trigger on dot for property access
+		' ',  // Trigger on space
+		'('   // Trigger on parentheses for functions
+	);
+
+	context.subscriptions.push(phsInlineCompletionProvider);
+
+	// Command to reload extension
+	const reloadExtensionCommand = vscode.commands.registerCommand('phlow.reloadExtension', async () => {
+		// Clear all caches
+		moduleSchemaCache.clear();
+		moduleNotFoundCache.clear();
+		availableModulesCache = null;
+		
+		// Reload window to refresh syntax highlighting
+		const result = await vscode.window.showInformationMessage(
+			'Extension reloaded! Reload VS Code window to apply syntax highlighting changes?',
+			'Reload Window',
+			'Later'
+		);
+		
+		if (result === 'Reload Window') {
+			vscode.commands.executeCommand('workbench.action.reloadWindow');
+		}
+	});
+
+	context.subscriptions.push(reloadExtensionCommand);
 }
 
 // This method is called when your extension is deactivated
