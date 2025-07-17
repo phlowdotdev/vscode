@@ -65,7 +65,7 @@ tests:
     main:
       input: "hello"
       multiplier: 3
-    assert: !phs payload.includes("HELLO")
+    assert: !include script2
 
   - describe: PHS with conditionals
     main:

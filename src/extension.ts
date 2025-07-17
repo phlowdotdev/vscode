@@ -1870,26 +1870,563 @@ steps:
 
 	context.subscriptions.push(phsInlineCompletionProvider);
 
+	// Enhanced Path Intellisense provider for !import and !include
+	const pathIntellisenseProvider = vscode.languages.registerCompletionItemProvider(
+		phlowDocumentSelector,
+		{
+			async provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
+				const context = createPhlowPathContext(document, position);
+
+				if (!context.shouldProvide) {
+					return undefined;
+				}
+
+				return await providePhlowPathCompletions(context);
+			}
+		},
+		'/',  // Trigger on slash for directory navigation
+		'.',  // Trigger on dot for file extensions
+		' '   // Trigger on space
+	);
+
+	context.subscriptions.push(pathIntellisenseProvider);
+
+	// Helper interfaces and functions for Path Intellisense
+	interface PhlowPathContext {
+		document: vscode.TextDocument;
+		position: vscode.Position;
+		lineText: string;
+		directive: string | null;
+		pathString: string;
+		shouldProvide: boolean;
+		importRange: vscode.Range;
+		workspaceFolder: vscode.WorkspaceFolder | undefined;
+		documentDir: string;
+	}
+
+	function createPhlowPathContext(document: vscode.TextDocument, position: vscode.Position): PhlowPathContext {
+		const lineText = document.lineAt(position).text;
+		const textToPosition = lineText.substring(0, position.character);
+		const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+		const documentDir = path.dirname(document.uri.fsPath);
+
+		// Check if we're in an !import or !include context
+		const directiveMatch = textToPosition.match(/(!import|!include)\s+/);
+		if (!directiveMatch) {
+			return {
+				document,
+				position,
+				lineText,
+				directive: null,
+				pathString: '',
+				shouldProvide: false,
+				importRange: new vscode.Range(position, position),
+				workspaceFolder,
+				documentDir
+			};
+		}
+
+		const directive = directiveMatch[1];
+		const afterDirective = textToPosition.substring(directiveMatch.index! + directiveMatch[0].length);
+
+		// Extract the path being typed (handle quotes and spaces)
+		let pathString = afterDirective.trim();
+
+		// Remove quotes if present
+		if (pathString.startsWith('"') || pathString.startsWith("'")) {
+			pathString = pathString.substring(1);
+		}
+
+		// Calculate the import range for replacement
+		const directiveEnd = directiveMatch.index! + directiveMatch[0].length;
+		const pathStart = directiveEnd + afterDirective.length - pathString.length;
+		const importRange = new vscode.Range(
+			new vscode.Position(position.line, pathStart),
+			position
+		);
+
+		return {
+			document,
+			position,
+			lineText,
+			directive,
+			pathString,
+			shouldProvide: true,
+			importRange,
+			workspaceFolder,
+			documentDir
+		};
+	}
+
+	async function providePhlowPathCompletions(context: PhlowPathContext): Promise<vscode.CompletionItem[]> {
+		if (!context.workspaceFolder) {
+			return [];
+		}
+
+		const { directive, pathString, documentDir, workspaceFolder } = context;
+
+		// Determine the target directory
+		const targetDir = getPathOfFolderToLookupFiles(
+			context.document.uri.fsPath,
+			pathString,
+			workspaceFolder.uri.fsPath
+		);
+
+		// Get children of the target directory
+		const children = await getChildrenOfPath(targetDir);
+
+		// Filter files based on directive
+		const allowedExtensions = directive === '!import'
+			? ['.phs', '.phlow', '.yaml', '.yml', '.json']
+			: ['.yaml', '.yml', '.json'];
+
+		// Create completion items
+		const completions: vscode.CompletionItem[] = [];
+
+		for (const child of children) {
+			if (child.isFile) {
+				// Only include files with allowed extensions
+				const fileExtension = path.extname(child.name);
+				if (allowedExtensions.includes(fileExtension)) {
+					const completion = createPathCompletionItem(child, context);
+					completions.push(completion);
+				}
+			} else {
+				// Always include directories
+				const completion = createPathCompletionItem(child, context);
+				completions.push(completion);
+			}
+		}
+
+		return completions;
+	}
+
+	function getPathOfFolderToLookupFiles(
+		fileName: string,
+		text: string,
+		rootPath: string
+	): string {
+		const normalizedText = path.normalize(text || '');
+		const isPathAbsolute = normalizedText.startsWith(path.sep);
+
+		const rootFolder = isPathAbsolute ? rootPath : path.dirname(fileName);
+		const pathEntered = normalizedText;
+
+		return path.join(rootFolder, pathEntered);
+	}
+
+	interface FileInfo {
+		name: string;
+		isFile: boolean;
+		path: string;
+	}
+
+	async function getChildrenOfPath(targetPath: string): Promise<FileInfo[]> {
+		try {
+			const filesTuples = await vscode.workspace.fs.readDirectory(vscode.Uri.file(targetPath));
+			const fileInfoList: FileInfo[] = [];
+
+			for (const [name, type] of filesTuples) {
+				// Skip hidden files and node_modules
+				if (name.startsWith('.') || name === 'node_modules') {
+					continue;
+				}
+
+				fileInfoList.push({
+					name,
+					isFile: type === vscode.FileType.File,
+					path: path.join(targetPath, name)
+				});
+			}
+
+			return fileInfoList;
+		} catch (error) {
+			return [];
+		}
+	}
+
+	function createPathCompletionItem(fileInfo: FileInfo, context: PhlowPathContext): vscode.CompletionItem {
+		const { directive, documentDir } = context;
+		const isDirectory = !fileInfo.isFile;
+
+		// Calculate relative path from document to file
+		const relativePath = path.relative(documentDir, fileInfo.path);
+		const displayName = isDirectory ? fileInfo.name + '/' : fileInfo.name;
+		const insertText = isDirectory ? fileInfo.name + '/' : relativePath;
+
+		// Create completion item
+		const completion = new vscode.CompletionItem(
+			displayName,
+			isDirectory ? vscode.CompletionItemKind.Folder : getFileCompletionKind(fileInfo.name)
+		);
+
+		// Set insert text and range
+		completion.insertText = insertText;
+		completion.range = context.importRange;
+
+		// Set detail and documentation
+		if (isDirectory) {
+			completion.detail = 'Directory';
+			completion.documentation = new vscode.MarkdownString(
+				`**Directory:** ${fileInfo.name}\n\nNavigate into this directory`
+			);
+		} else {
+			const fileExtension = path.extname(fileInfo.name);
+			completion.detail = `${directive} ${relativePath}`;
+			completion.documentation = new vscode.MarkdownString(
+				`**${directive}** ${fileInfo.name}\n\n` +
+				`Path: \`${relativePath}\`\n\n` +
+				`Type: ${fileExtension} file`
+			);
+		}
+
+		// Set sort text to prioritize files over directories
+		completion.sortText = isDirectory ? 'z' + displayName : 'a' + displayName;
+
+		return completion;
+	}
+
+	function getFileCompletionKind(fileName: string): vscode.CompletionItemKind {
+		const extension = path.extname(fileName);
+		switch (extension) {
+			case '.phlow':
+				return vscode.CompletionItemKind.Module;
+			case '.phs':
+				return vscode.CompletionItemKind.Function;
+			case '.json':
+				return vscode.CompletionItemKind.Struct;
+			case '.yaml':
+			case '.yml':
+				return vscode.CompletionItemKind.Property;
+			default:
+				return vscode.CompletionItemKind.File;
+		}
+	}
+
+	// Definition provider for !import and !include (click to go)
+	const definitionProvider = vscode.languages.registerDefinitionProvider(
+		phlowDocumentSelector,
+		{
+			provideDefinition(document: vscode.TextDocument, position: vscode.Position) {
+				const lineText = document.lineAt(position).text;
+				const wordRange = document.getWordRangeAtPosition(position);
+
+				if (!wordRange) {
+					return undefined;
+				}
+
+				// Check if we're on a file path after !import or !include
+				const importMatch = lineText.match(/(!import|!include)\s+([^\s]+)/);
+				if (!importMatch) {
+					return undefined;
+				}
+
+				const directive = importMatch[1];
+				const filePath = importMatch[2];
+				const documentDir = path.dirname(document.uri.fsPath);
+
+				// Check if the cursor is on the file path
+				const pathStartIndex = lineText.indexOf(filePath);
+				const pathEndIndex = pathStartIndex + filePath.length;
+
+				if (position.character < pathStartIndex || position.character > pathEndIndex) {
+					return undefined;
+				}
+
+				// Resolve the file path
+				let resolvedPath: string;
+				if (path.isAbsolute(filePath)) {
+					// Already absolute
+					resolvedPath = filePath;
+				} else {
+					// Relative to current document
+					resolvedPath = path.resolve(documentDir, filePath);
+				}
+
+				// Create URI and location
+				const targetUri = vscode.Uri.file(resolvedPath);
+				const location = new vscode.Location(targetUri, new vscode.Position(0, 0));
+
+				return location;
+			}
+		}
+	);
+
+	context.subscriptions.push(definitionProvider);
+
+	// Rename provider for !import and !include (update references when files are renamed)
+	const renameProvider = vscode.languages.registerRenameProvider(
+		phlowDocumentSelector,
+		{
+			async provideRenameEdits(document: vscode.TextDocument, position: vscode.Position, newName: string) {
+				const lineText = document.lineAt(position).text;
+				const wordRange = document.getWordRangeAtPosition(position);
+
+				if (!wordRange) {
+					return undefined;
+				}
+
+				// Check if we're on a file path after !import or !include
+				const importMatch = lineText.match(/(!import|!include)\s+([^\s]+)/);
+				if (!importMatch) {
+					return undefined;
+				}
+
+				const directive = importMatch[1];
+				const filePath = importMatch[2];
+				const documentDir = path.dirname(document.uri.fsPath);
+
+				// Check if the cursor is on the file path
+				const pathStartIndex = lineText.indexOf(filePath);
+				const pathEndIndex = pathStartIndex + filePath.length;
+
+				if (position.character < pathStartIndex || position.character > pathEndIndex) {
+					return undefined;
+				}
+
+				// Calculate the new relative path
+				let newPath: string;
+				if (path.isAbsolute(filePath)) {
+					// If it was absolute, keep it absolute
+					newPath = newName;
+				} else {
+					// If it was relative, calculate new relative path
+					const currentDir = path.dirname(path.resolve(documentDir, filePath));
+					const newAbsolutePath = path.resolve(currentDir, newName);
+					newPath = path.relative(documentDir, newAbsolutePath);
+
+					// Normalize path separators for consistency
+					newPath = newPath.replace(/\\/g, '/');
+				}
+
+				// Create the workspace edit
+				const edit = new vscode.WorkspaceEdit();
+				const range = new vscode.Range(
+					position.line, pathStartIndex,
+					position.line, pathEndIndex
+				);
+
+				edit.replace(document.uri, range, newPath);
+				return edit;
+			}
+		}
+	);
+
+	context.subscriptions.push(renameProvider);
+
+	// File system watcher for automatic import reference updates
+	const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*.{phlow,phs,yaml,yml,json}');
+
+	// Handle file renames/moves
+	fileWatcher.onDidCreate(async (uri) => {
+		// This could be a rename/move operation, check if we need to update references
+		await updateImportReferences(uri);
+	});
+
+	fileWatcher.onDidDelete(async (uri) => {
+		// File was deleted, we could warn about broken references
+		await checkForBrokenReferences(uri);
+	});
+
+	context.subscriptions.push(fileWatcher);
+
+	// Helper function to update import references
+	async function updateImportReferences(targetUri: vscode.Uri) {
+		try {
+			// Find all .phlow files in the workspace
+			const phlowFiles = await vscode.workspace.findFiles('**/*.phlow', '**/node_modules/**');
+
+			for (const phlowFile of phlowFiles) {
+				const document = await vscode.workspace.openTextDocument(phlowFile);
+				const content = document.getText();
+				const lines = content.split('\n');
+
+				// Check each line for import/include directives
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i];
+					const importMatch = line.match(/(!import|!include)\s+([^\s]+)/);
+
+					if (importMatch) {
+						const directive = importMatch[1];
+						const filePath = importMatch[2];
+						const documentDir = path.dirname(phlowFile.fsPath);
+
+						// Resolve the referenced file path
+						let resolvedPath: string;
+						if (path.isAbsolute(filePath)) {
+							resolvedPath = filePath;
+						} else {
+							resolvedPath = path.resolve(documentDir, filePath);
+						}
+
+						// Check if this matches our target file
+						if (path.normalize(resolvedPath) === path.normalize(targetUri.fsPath)) {
+							// This reference points to our target file, but we can't automatically update
+							// without knowing the old path. This is handled by the rename provider above.
+							console.log(`Found reference to ${targetUri.fsPath} in ${phlowFile.fsPath}`);
+						}
+					}
+				}
+			}
+		} catch (error) {
+			console.error('Error updating import references:', error);
+		}
+	}
+
+	// Helper function to check for broken references
+	async function checkForBrokenReferences(deletedUri: vscode.Uri) {
+		try {
+			// Find all .phlow files in the workspace
+			const phlowFiles = await vscode.workspace.findFiles('**/*.phlow', '**/node_modules/**');
+			const brokenRefs: { file: string; line: number; path: string }[] = [];
+
+			for (const phlowFile of phlowFiles) {
+				const document = await vscode.workspace.openTextDocument(phlowFile);
+				const content = document.getText();
+				const lines = content.split('\n');
+
+				// Check each line for import/include directives
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i];
+					const importMatch = line.match(/(!import|!include)\s+([^\s]+)/);
+
+					if (importMatch) {
+						const directive = importMatch[1];
+						const filePath = importMatch[2];
+						const documentDir = path.dirname(phlowFile.fsPath);
+
+						// Resolve the referenced file path
+						let resolvedPath: string;
+						if (path.isAbsolute(filePath)) {
+							resolvedPath = filePath;
+						} else {
+							resolvedPath = path.resolve(documentDir, filePath);
+						}
+
+						// Check if this matches our deleted file
+						if (path.normalize(resolvedPath) === path.normalize(deletedUri.fsPath)) {
+							brokenRefs.push({
+								file: phlowFile.fsPath,
+								line: i + 1,
+								path: filePath
+							});
+						}
+					}
+				}
+			}
+
+			// Show warning about broken references
+			if (brokenRefs.length > 0) {
+				const message = `Found ${brokenRefs.length} broken import/include reference(s) to deleted file ${path.basename(deletedUri.fsPath)}:`;
+				const details = brokenRefs.map(ref => `• ${path.basename(ref.file)}:${ref.line} - ${ref.path}`).join('\n');
+
+				vscode.window.showWarningMessage(
+					`${message}\n\n${details}`,
+					'Show Problems Panel'
+				).then(selection => {
+					if (selection === 'Show Problems Panel') {
+						vscode.commands.executeCommand('workbench.panel.markers.view.focus');
+					}
+				});
+			}
+		} catch (error) {
+			console.error('Error checking for broken references:', error);
+		}
+	}
+
 	// Command to reload extension
 	const reloadExtensionCommand = vscode.commands.registerCommand('phlow.reloadExtension', async () => {
 		// Clear all caches
 		moduleSchemaCache.clear();
 		moduleNotFoundCache.clear();
 		availableModulesCache = null;
-		
+
 		// Reload window to refresh syntax highlighting
 		const result = await vscode.window.showInformationMessage(
 			'Extension reloaded! Reload VS Code window to apply syntax highlighting changes?',
 			'Reload Window',
 			'Later'
 		);
-		
+
 		if (result === 'Reload Window') {
 			vscode.commands.executeCommand('workbench.action.reloadWindow');
 		}
 	});
 
 	context.subscriptions.push(reloadExtensionCommand);
+
+	// Command to force update import references
+	const updateImportReferencesCommand = vscode.commands.registerCommand('phlow.updateImportReferences', async () => {
+		try {
+			// Find all .phlow files in the workspace
+			const phlowFiles = await vscode.workspace.findFiles('**/*.phlow', '**/node_modules/**');
+			let totalReferences = 0;
+			const brokenRefs: { file: string; line: number; path: string }[] = [];
+
+			for (const phlowFile of phlowFiles) {
+				const document = await vscode.workspace.openTextDocument(phlowFile);
+				const content = document.getText();
+				const lines = content.split('\n');
+
+				// Check each line for import/include directives
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i];
+					const importMatch = line.match(/(!import|!include)\s+([^\s]+)/);
+
+					if (importMatch) {
+						totalReferences++;
+						const directive = importMatch[1];
+						const filePath = importMatch[2];
+						const documentDir = path.dirname(phlowFile.fsPath);
+
+						// Resolve the referenced file path
+						let resolvedPath: string;
+						if (path.isAbsolute(filePath)) {
+							resolvedPath = filePath;
+						} else {
+							resolvedPath = path.resolve(documentDir, filePath);
+						}
+
+						// Check if the file exists
+						try {
+							await vscode.workspace.fs.stat(vscode.Uri.file(resolvedPath));
+						} catch (error) {
+							// File doesn't exist, add to broken references
+							brokenRefs.push({
+								file: phlowFile.fsPath,
+								line: i + 1,
+								path: filePath
+							});
+						}
+					}
+				}
+			}
+
+			// Show results
+			if (brokenRefs.length > 0) {
+				const message = `Found ${totalReferences} import/include reference(s) with ${brokenRefs.length} broken reference(s):`;
+				const details = brokenRefs.map(ref => `• ${path.basename(ref.file)}:${ref.line} - ${ref.path}`).join('\n');
+
+				vscode.window.showWarningMessage(
+					`${message}\n\n${details}`,
+					'Show Problems Panel'
+				).then(selection => {
+					if (selection === 'Show Problems Panel') {
+						vscode.commands.executeCommand('workbench.panel.markers.view.focus');
+					}
+				});
+			} else {
+				vscode.window.showInformationMessage(
+					`✅ Found ${totalReferences} import/include reference(s) - all are valid!`
+				);
+			}
+		} catch (error) {
+			console.error('Error checking import references:', error);
+			vscode.window.showErrorMessage(`Error checking import references: ${error}`);
+		}
+	});
+
+	context.subscriptions.push(updateImportReferencesCommand);
 }
 
 // This method is called when your extension is deactivated

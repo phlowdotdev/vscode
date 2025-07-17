@@ -1,0 +1,33 @@
+main: cli
+name: Import Include Demo
+version: 1.0.0
+description: Demonstra as funcionalidades de !import e !include
+
+# Módulos carregados de arquivo separado
+modules: !include modules.yaml
+
+# Passos que incluem scripts externos
+steps:
+  - payload:
+      message: "Iniciando demonstração"
+
+  # Importa e executa um script PHS
+  - payload: !import script.phs
+
+  # Importa validação de dados
+  - assert: !import scripts/validate.phs
+    then:
+      - payload: "Validação passou com sucesso"
+    else:
+      - payload: "Erro na validação"
+
+  # Inclui configuração de dados
+  - payload: !include data/config.yaml
+
+  - return: !phs `${payload.message}: ${payload.result}`
+
+# Exemplos de diferentes tipos de paths:
+# !include ./local.yaml          # Arquivo no mesmo diretório
+# !include ../shared/config.yaml # Arquivo no diretório pai
+# !include configs/database.yaml # Arquivo em subdiretório
+# !import scripts/helpers.phs    # Script PHS em subdiretório
