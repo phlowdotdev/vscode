@@ -7,7 +7,15 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 ### 🎨 Full YAML Compatibility
 - **`.phlow` files behave exactly like YAML**
 - Complete syntax highlighting for YAML
-- **Automatic 2-space indentation** (YAML standard)
+- **Automa- ✅ **Numbers**: Integer and float highlighting (cyan)
+- ✅ **Booleans**: `true`/`false` highlighted (orange)
+- 🚀 **PHS expressions**: Full PHS syntax in quoted values
+- ⚠️ **Argument validation**: Warns about unused include arguments
+
+**New Argument Validation**:
+- Detects unused arguments in `!include` statements
+- Scans target files for `!arg` usage patterns
+- Real-time warnings for better code quality 2-space indentation** (YAML standard)
 - Block and structure folding
 - Real-time YAML syntax validation
 - Support for all YAML data types (strings, numbers, booleans, arrays, objects)

@@ -27,6 +27,13 @@
 - **Relative paths**: Full support for `./`, `../` paths with automatic extension detection
 - **Detailed logging**: Console logs for debugging include file resolution
 
+#### ⚠️ Include Arguments Validation (NEW!)
+- **Unused argument detection**: Warns when `!include` arguments are not used in target file
+- **Smart !arg analysis**: Scans included files for `!arg argument_name` usage
+- **Real-time warnings**: Live validation as you type include statements
+- **Precise error positioning**: Warnings highlight exactly the unused argument name
+- **Performance optimized**: Only validates when include files exist and are readable
+
 ### Improved
 
 #### 🎯 Syntax Highlighting Engine
@@ -60,6 +67,11 @@
 !include ./return target=handler                    # Finds return.phlow
 !include ./config debug=true                        # Finds config.yaml or config.yml
 !include ../shared/utils operation=transform         # Finds utils.phlow, utils.yaml, or utils.yml
+
+# Argument validation examples (NEW!)
+!include ./return target=route_get_authors          # ✅ 'target' used in return.phlow
+!include ./return unused_arg=value                  # ⚠️  Warning: 'unused_arg' not used
+!include ./return target=handler extra=notused      # ⚠️  Warning: 'extra' not used
 ```
 
 #### 🏗️ Grammar Architecture

@@ -26,11 +26,10 @@ modules:
       default_response:
         status_code: 204
 
-
 main: http_server
 
 steps:
-  !include ./return target=route_get_authors
+  !include ./return target=route_get_authors asdas=true
   !include ./return target=route_post_authors
   !include ./return.phlow target=route_delete_authors
 

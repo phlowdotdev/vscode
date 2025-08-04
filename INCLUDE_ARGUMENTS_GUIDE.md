@@ -118,8 +118,48 @@ steps:
 ✅ **Parameter naming**: Argument names are highlighted as variables
 ✅ **Go to Definition**: Ctrl+Click or F12 to navigate to included files
 ✅ **Extension-less includes**: Automatically finds `.phlow`, `.yaml`, or `.yml` files
+✅ **Argument validation**: Warns about unused arguments in include statements
+✅ **!arg detection**: Scans included files for `!arg argument_name` usage patterns
+✅ **Real-time feedback**: Live validation and warnings as you type
 
-## Go to Definition Support
+## Argument Validation (NEW!)
+
+### How it Works
+The extension now validates that all arguments passed to `!include` are actually used in the target file.
+
+### Usage Detection
+- Scans included files for `!arg argument_name` patterns
+- Compares with arguments provided in `!include` statement
+- Shows warnings for unused arguments
+
+### Examples
+
+#### ✅ Valid Usage
+```yaml
+# return.phlow contains: - use: !arg target
+!include ./return target=route_get_authors  # ✅ 'target' is used
+```
+
+#### ⚠️ Unused Arguments
+```yaml
+# return.phlow only uses 'target', not 'other'
+!include ./return target=handler other=true  # ⚠️ Warning: 'other' not used
+!include ./return unused_param=value         # ⚠️ Warning: 'unused_param' not used
+```
+
+#### 📝 Multiple Arguments
+```yaml
+# template.phlow contains: !arg data and !arg format
+!include ./template data='!phs payload' format="json"     # ✅ Both used
+!include ./template data='!phs payload' extra=notused     # ⚠️ 'extra' not used
+```
+
+### Warning Details
+- **Severity**: Warning (not error)
+- **Position**: Highlights the unused argument name
+- **Message**: "Argument 'name' is not used in included file 'filename'"
+- **Code**: `unused-include-argument`
+- **Source**: `phlow`
 
 ### How it Works
 - **Ctrl+Click** or **F12** on any file path in `!include` directives

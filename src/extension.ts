@@ -1548,6 +1548,10 @@ steps:
 			// Se o schema não existir, simplesmente ignora (não mostra erro)
 		}
 
+		// Parse and validate !include directives with arguments
+		const includeValidations = await validateIncludeDirectives(document, lines);
+		diagnostics.push(...includeValidations);
+
 		diagnosticCollection.set(document.uri, diagnostics);
 	}
 
@@ -1770,6 +1774,132 @@ steps:
 		}
 
 		return diagnostics;
+	}
+
+	// Validate !include directives and their arguments
+	async function validateIncludeDirectives(document: vscode.TextDocument, lines: string[]): Promise<vscode.Diagnostic[]> {
+		const diagnostics: vscode.Diagnostic[] = [];
+		const documentDir = path.dirname(document.uri.fsPath);
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			
+			// Match !include with arguments: !include ./file arg1=value1 arg2=value2
+			const includeMatch = line.match(/(!include)\s+([^\s]+)(\s+(.+))?/);
+			if (!includeMatch) {
+				continue;
+			}
+
+			const directive = includeMatch[1];
+			const filePath = includeMatch[2];
+			const argumentsString = includeMatch[4] || '';
+
+			console.log(`🔍 Validating include: ${filePath} with args: "${argumentsString}"`);
+
+			// Parse arguments from the include line
+			const includeArgs = parseIncludeArguments(argumentsString, i, line);
+			
+			if (includeArgs.length === 0) {
+				console.log(`   No arguments to validate for ${filePath}`);
+				continue;
+			}
+
+			// Find the included file
+			const includeFileUri = await findIncludeFileLocation(filePath, documentDir);
+			if (!includeFileUri) {
+				console.log(`   ❌ Include file not found: ${filePath}`);
+				continue;
+			}
+
+			console.log(`   ✅ Found include file: ${includeFileUri.fsPath}`);
+
+			try {
+				// Read the included file content
+				const includeFileContent = await vscode.workspace.fs.readFile(includeFileUri);
+				const includeText = includeFileContent.toString();
+
+				// Find !arg usages in the included file
+				const usedArgs = findArgUsagesInFile(includeText);
+				console.log(`   Used args in ${path.basename(includeFileUri.fsPath)}: [${usedArgs.join(', ')}]`);
+
+				// Check each argument from !include
+				for (const arg of includeArgs) {
+					if (!usedArgs.includes(arg.name)) {
+						console.log(`   ⚠️  Unused argument: ${arg.name}`);
+						
+						const diagnostic = new vscode.Diagnostic(
+							arg.range,
+							`Argument '${arg.name}' is not used in included file '${path.basename(includeFileUri.fsPath)}'`,
+							vscode.DiagnosticSeverity.Warning
+						);
+						diagnostic.code = 'unused-include-argument';
+						diagnostic.source = 'phlow';
+						diagnostics.push(diagnostic);
+					} else {
+						console.log(`   ✅ Argument '${arg.name}' is used in included file`);
+					}
+				}
+
+			} catch (error) {
+				console.log(`   ❌ Error reading include file: ${error}`);
+			}
+		}
+
+		return diagnostics;
+	}
+
+	// Parse arguments from !include line
+	function parseIncludeArguments(argumentsString: string, lineIndex: number, fullLine: string): Array<{name: string, range: vscode.Range}> {
+		const args: Array<{name: string, range: vscode.Range}> = [];
+		
+		if (!argumentsString || argumentsString.trim() === '') {
+			return args;
+		}
+
+		// Find the start position of arguments in the full line
+		const includeMatch = fullLine.match(/(!include)\s+([^\s]+)\s+/);
+		const argumentsStartPos = includeMatch ? includeMatch.index! + includeMatch[0].length : 0;
+
+		// Match argument patterns: name=value (including quoted values)
+		const argPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:'[^']*'|"[^"]*"|[^\s]+)/g;
+		let match;
+		
+		while ((match = argPattern.exec(argumentsString)) !== null) {
+			const argName = match[1];
+			const argStartInArgString = match.index;
+			const argStartInFullLine = argumentsStartPos + argStartInArgString;
+			
+			const range = new vscode.Range(
+				lineIndex,
+				argStartInFullLine,
+				lineIndex,
+				argStartInFullLine + argName.length
+			);
+			
+			args.push({
+				name: argName,
+				range: range
+			});
+		}
+
+		return args;
+	}
+
+	// Find !arg usages in file content
+	function findArgUsagesInFile(fileContent: string): string[] {
+		const usedArgs: string[] = [];
+		
+		// Match !arg argument_name patterns
+		const argMatches = fileContent.matchAll(/!arg\s+([a-zA-Z_][a-zA-Z0-9_]*)/g);
+		
+		for (const match of argMatches) {
+			const argName = match[1];
+			if (!usedArgs.includes(argName)) {
+				usedArgs.push(argName);
+			}
+		}
+
+		return usedArgs;
 	}
 
 	// Real-time validation with debouncing

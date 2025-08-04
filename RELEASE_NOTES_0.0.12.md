@@ -47,6 +47,12 @@ The extension now provides **intelligent syntax highlighting** for `!include` ar
    - **Arguments support**: Works with `!include ./file target=value`
    - **Console feedback**: Detailed logging for debugging file resolution
 
+8. **⚠️ Include Arguments Validation** (NEW!)
+   - **Unused argument detection**: Warns when arguments aren't used in target file
+   - **!arg analysis**: Scans included files for `!arg argument_name` patterns
+   - **Real-time warnings**: Live validation as you type
+   - **Precise positioning**: Highlights exactly the unused argument name
+
 ### 🎯 Usage Examples
 
 #### Simple Arguments
@@ -65,13 +71,22 @@ The extension now provides **intelligent syntax highlighting** for `!include` ar
 **Navigation**: Ctrl+Click on `./template.phlow` opens the file
 **Highlighting**: All arguments are properly colored by type
 
-#### Extension-less Includes with Auto-Detection (NEW!)
+#### Extension-less Includes with Auto-Detection and Validation (NEW!)
 ```yaml
-- payload: !include ./return target=handler        # Finds return.phlow
-- config: !include ./settings debug=true          # Finds settings.yaml or settings.yml  
-- utils: !include ../shared/common operation=transform  # Works with relative paths
+# Navigation + Validation
+- payload: !include ./return target=handler        # ✅ Finds return.phlow + validates 'target'
+- config: !include ./settings debug=true          # ✅ Finds settings.yaml + validates 'debug'  
+- utils: !include ../shared/common operation=transform  # ✅ Navigation + validation
+
+# Validation Examples
+- payload: !include ./return target=route_get_authors  # ✅ 'target' used in return.phlow
+- payload: !include ./return unused_arg=value          # ⚠️  Warning: 'unused_arg' not used
+- payload: !include ./return target=handler extra=123  # ⚠️  Warning: 'extra' not used
 ```
-**Smart Search**: Automatically tries `.phlow`, `.yaml`, `.yml` extensions
+**Smart Features**: 
+- **Auto-extension detection** for navigation
+- **Real-time argument validation** with warnings
+- **!arg usage analysis** in target files
 
 #### Multi-line Arguments
 ```yaml
