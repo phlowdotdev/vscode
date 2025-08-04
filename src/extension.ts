@@ -100,52 +100,253 @@ async function fetchAvailableModules(): Promise<string[]> {
 	}
 }
 
-async function fetchModuleSchema(moduleName: string): Promise<ModuleSchema | null> {
+// Função para buscar schema de módulo Phlow (.phlow)
+async function fetchPhlowModuleSchema(url: string, moduleName: string): Promise<ModuleSchema | null> {
+	return new Promise((resolve) => {
+		https.get(url, (res) => {
+			let data = '';
+			res.on('data', (chunk) => data += chunk);
+			res.on('end', () => {
+				try {
+					if (res.statusCode === 404) {
+						resolve(null);
+						return;
+					}
+
+					const schema = parsePhlowModuleFile(data, moduleName);
+					resolve(schema);
+				} catch (error) {
+					console.error(`Error parsing Phlow module ${moduleName}:`, error);
+					resolve(null);
+				}
+			});
+		}).on('error', () => {
+			resolve(null);
+		});
+	});
+}
+
+// Função para buscar schema de módulo YAML (Rust)
+async function fetchYamlModuleSchema(url: string, moduleName: string): Promise<ModuleSchema | null> {
+	return new Promise((resolve) => {
+		https.get(url, (res) => {
+			let data = '';
+			res.on('data', (chunk) => data += chunk);
+			res.on('end', () => {
+				try {
+					if (res.statusCode === 404) {
+						resolve(null);
+						return;
+					}
+
+					const schema = parseModuleYaml(data);
+					resolve(schema);
+				} catch (error) {
+					console.error(`Error parsing YAML module ${moduleName}:`, error);
+					resolve(null);
+				}
+			});
+		}).on('error', () => {
+			resolve(null);
+		});
+	});
+}
+
+// Função para buscar schema de módulo local
+async function fetchLocalModuleSchema(moduleName: string): Promise<ModuleSchema | null> {
+	try {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			return null;
+		}
+
+		// Procurar em todas as pastas do workspace
+		for (const folder of workspaceFolders) {
+			// Primeiro tenta encontrar {moduleName}.phlow
+			const phlowModulePath = vscode.Uri.joinPath(folder.uri, `${moduleName}.phlow`);
+			try {
+				const phlowContent = await vscode.workspace.fs.readFile(phlowModulePath);
+				const contentString = Buffer.from(phlowContent).toString('utf8');
+				const schema = parsePhlowModuleFile(contentString, moduleName);
+				if (schema) {
+					console.log(`Found local Phlow module: ${phlowModulePath.fsPath}`);
+					return schema;
+				}
+			} catch (error) {
+				// Arquivo .phlow não encontrado, continua
+			}
+
+			// Depois tenta encontrar {moduleName}.yaml
+			const yamlModulePath = vscode.Uri.joinPath(folder.uri, `${moduleName}.yaml`);
+			try {
+				const yamlContent = await vscode.workspace.fs.readFile(yamlModulePath);
+				const contentString = Buffer.from(yamlContent).toString('utf8');
+				const schema = parseModuleYaml(contentString);
+				if (schema) {
+					console.log(`Found local YAML module: ${yamlModulePath.fsPath}`);
+					return schema;
+				}
+			} catch (error) {
+				// Arquivo .yaml não encontrado, continua
+			}
+
+			// Procurar em subdiretórios modules/
+			const modulesDir = vscode.Uri.joinPath(folder.uri, 'modules');
+			try {
+				// Tenta {modules}/{moduleName}/{moduleName}.phlow
+				const moduleSubdirPhlow = vscode.Uri.joinPath(modulesDir, moduleName, `${moduleName}.phlow`);
+				const phlowContent = await vscode.workspace.fs.readFile(moduleSubdirPhlow);
+				const contentString = Buffer.from(phlowContent).toString('utf8');
+				const schema = parsePhlowModuleFile(contentString, moduleName);
+				if (schema) {
+					console.log(`Found local Phlow module in subdirectory: ${moduleSubdirPhlow.fsPath}`);
+					return schema;
+				}
+			} catch (error) {
+				// Arquivo .phlow no subdiretório não encontrado, continua
+			}
+
+			try {
+				// Tenta {modules}/{moduleName}/phlow.yaml
+				const moduleSubdirYaml = vscode.Uri.joinPath(modulesDir, moduleName, 'phlow.yaml');
+				const yamlContent = await vscode.workspace.fs.readFile(moduleSubdirYaml);
+				const contentString = Buffer.from(yamlContent).toString('utf8');
+				const schema = parseModuleYaml(contentString);
+				if (schema) {
+					console.log(`Found local YAML module in subdirectory: ${moduleSubdirYaml.fsPath}`);
+					return schema;
+				}
+			} catch (error) {
+				// Arquivo .yaml no subdiretório não encontrado, continua
+			}
+		}
+
+		return null;
+	} catch (error) {
+		console.error(`Error searching for local module ${moduleName}:`, error);
+		return null;
+	}
+}
+
+// Função para buscar schema de módulo local via caminho relativo
+async function fetchRelativeModuleSchema(relativePath: string, currentDocumentUri: vscode.Uri): Promise<ModuleSchema | null> {
+	try {
+		console.log(`🔍 Fetching relative module schema for: ${relativePath}`);
+		console.log(`   From document: ${vscode.workspace.asRelativePath(currentDocumentUri)}`);
+
+		// Resolve o caminho relativo em relação ao arquivo atual
+		const currentDocumentDir = vscode.Uri.joinPath(currentDocumentUri, '..');
+		console.log(`   Document directory: ${currentDocumentDir.fsPath}`);
+
+		// Primeiro tenta {relativePath}.phlow
+		const phlowModulePath = vscode.Uri.joinPath(currentDocumentDir, `${relativePath}.phlow`);
+		console.log(`   Trying .phlow file: ${phlowModulePath.fsPath}`);
+
+		try {
+			const phlowContent = await vscode.workspace.fs.readFile(phlowModulePath);
+			const contentString = Buffer.from(phlowContent).toString('utf8');
+			const moduleBaseName = path.basename(relativePath);
+			const schema = parsePhlowModuleFile(contentString, moduleBaseName);
+			if (schema) {
+				console.log(`✅ Found relative Phlow module: ${phlowModulePath.fsPath}`);
+				console.log(`   Module name: ${schema.name}, Version: ${schema.version}`);
+				return schema;
+			}
+		} catch (error) {
+			console.log(`   .phlow file not found: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		}
+
+		// Depois tenta {relativePath}.yaml
+		const yamlModulePath = vscode.Uri.joinPath(currentDocumentDir, `${relativePath}.yaml`);
+		console.log(`   Trying .yaml file: ${yamlModulePath.fsPath}`);
+
+		try {
+			const yamlContent = await vscode.workspace.fs.readFile(yamlModulePath);
+			const contentString = Buffer.from(yamlContent).toString('utf8');
+			const schema = parseModuleYaml(contentString);
+			if (schema) {
+				console.log(`✅ Found relative YAML module: ${yamlModulePath.fsPath}`);
+				console.log(`   Module name: ${schema.name}, Version: ${schema.version}`);
+				return schema;
+			}
+		} catch (error) {
+			console.log(`   .yaml file not found: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		}
+
+		console.log(`❌ No relative module found for: ${relativePath}`);
+		return null;
+	} catch (error) {
+		console.error(`❌ Error searching for relative module ${relativePath}:`, error);
+		return null;
+	}
+}
+
+async function fetchModuleSchema(moduleName: string, currentDocumentUri?: vscode.Uri): Promise<ModuleSchema | null> {
+	console.log(`📦 Fetching module schema for: "${moduleName}"`);
+
+	// Detecta se é um caminho relativo
+	const isRelativePath = moduleName.startsWith('./') || moduleName.startsWith('../');
+	console.log(`   Is relative path: ${isRelativePath}`);
+
+	// Se é caminho relativo, usa a nova função específica (sem cache para caminhos relativos)
+	if (isRelativePath && currentDocumentUri) {
+		console.log(`   Using relative path resolution from: ${vscode.workspace.asRelativePath(currentDocumentUri)}`);
+		return await fetchRelativeModuleSchema(moduleName, currentDocumentUri);
+	}
+
+	// Check cache first for absolute modules
 	if (moduleSchemaCache.has(moduleName)) {
+		console.log(`   Found in cache: ${moduleName}`);
 		return moduleSchemaCache.get(moduleName)!;
 	}
 
 	// Se já tentamos buscar este módulo e não foi encontrado, não tente novamente
 	if (moduleNotFoundCache.has(moduleName)) {
+		console.log(`   Module in not-found cache: ${moduleName}`);
 		return null;
 	}
 
 	try {
-		const url = `https://raw.githubusercontent.com/phlowdotdev/phlow/refs/heads/main/modules/${moduleName}/phlow.yaml`;
+		console.log(`   Searching for module: ${moduleName}`);
 
-		return new Promise((resolve, reject) => {
-			https.get(url, (res) => {
-				let data = '';
-				res.on('data', (chunk) => data += chunk);
-				res.on('end', () => {
-					try {
-						if (res.statusCode === 404) {
-							// Módulo não encontrado, adiciona ao cache de não encontrados
-							moduleNotFoundCache.add(moduleName);
-							resolve(null);
-							return;
-						}
+		// PRIMEIRO: Tenta buscar módulo local no workspace
+		console.log(`   1️⃣ Trying local workspace module...`);
+		const localSchema = await fetchLocalModuleSchema(moduleName);
+		if (localSchema) {
+			console.log(`   ✅ Found local module: ${moduleName}`);
+			moduleSchemaCache.set(moduleName, localSchema);
+			return localSchema;
+		}
 
-						const schema = parseModuleYaml(data);
-						if (schema) {
-							moduleSchemaCache.set(moduleName, schema);
-							resolve(schema);
-						} else {
-							// Se não conseguiu fazer parse, considera como não encontrado
-							moduleNotFoundCache.add(moduleName);
-							resolve(null);
-						}
-					} catch (error) {
-						moduleNotFoundCache.add(moduleName);
-						resolve(null);
-					}
-				});
-			}).on('error', () => {
-				moduleNotFoundCache.add(moduleName);
-				resolve(null);
-			});
-		});
+		// SEGUNDO: Tenta buscar arquivo .phlow remoto (Phlow Module)
+		console.log(`   2️⃣ Trying remote .phlow module...`);
+		const phlowModuleUrl = `https://raw.githubusercontent.com/phlowdotdev/phlow/refs/heads/main/modules/${moduleName}/${moduleName}.phlow`;
+		const phlowSchema = await fetchPhlowModuleSchema(phlowModuleUrl, moduleName);
+
+		if (phlowSchema) {
+			console.log(`   ✅ Found remote .phlow module: ${moduleName}`);
+			moduleSchemaCache.set(moduleName, phlowSchema);
+			return phlowSchema;
+		}
+
+		// TERCEIRO: Tenta buscar phlow.yaml remoto (módulo Rust)
+		console.log(`   3️⃣ Trying remote .yaml module...`);
+		const yamlModuleUrl = `https://raw.githubusercontent.com/phlowdotdev/phlow/refs/heads/main/modules/${moduleName}/phlow.yaml`;
+		const yamlSchema = await fetchYamlModuleSchema(yamlModuleUrl, moduleName);
+
+		if (yamlSchema) {
+			console.log(`   ✅ Found remote .yaml module: ${moduleName}`);
+			moduleSchemaCache.set(moduleName, yamlSchema);
+			return yamlSchema;
+		}
+
+		// Nenhum dos formatos foi encontrado
+		console.log(`   ❌ Module not found anywhere: ${moduleName}`);
+		moduleNotFoundCache.add(moduleName);
+		return null;
+
 	} catch (error) {
+		console.error(`   ❌ Error fetching module ${moduleName}:`, error);
 		moduleNotFoundCache.add(moduleName);
 		return null;
 	}
@@ -204,6 +405,73 @@ function parseModuleYaml(yamlContent: string): ModuleSchema | null {
 		return schema;
 	} catch (error) {
 		console.error('Error parsing module YAML:', error);
+		return null;
+	}
+}
+
+// Função para extrair schema de arquivos .phlow (Phlow Modules)
+function parsePhlowModuleFile(phlowContent: string, moduleName: string): ModuleSchema | null {
+	try {
+		// Parse usando a biblioteca YAML (arquivos .phlow são compatíveis com YAML)
+		const parsedPhlow = yaml.parse(phlowContent);
+
+		if (!parsedPhlow || typeof parsedPhlow !== 'object') {
+			return null;
+		}
+
+		// Criar schema base
+		const schema: ModuleSchema = {
+			name: parsedPhlow.name || moduleName,
+			description: parsedPhlow.description || '',
+			version: parsedPhlow.version || '1.0.0',
+			type: 'script' // Phlow modules são sempre do tipo script
+		};
+
+		// Extrair seção 'with' (configuração do módulo)
+		if (parsedPhlow.with && typeof parsedPhlow.with === 'object') {
+			schema.with = {
+				type: parsedPhlow.with.type || 'object',
+				required: parsedPhlow.with.required || false,
+				aditional_propierties: parsedPhlow.with.aditional_propierties || false,
+				properties: parsedPhlow.with.properties || {}
+			};
+		}
+
+		// Extrair seção 'input' (dados de entrada esperados)
+		if (parsedPhlow.input && typeof parsedPhlow.input === 'object') {
+			schema.input = {
+				type: parsedPhlow.input.type || 'object',
+				required: parsedPhlow.input.required || false,
+				aditional_propierties: parsedPhlow.input.aditional_propierties || false,
+				properties: parsedPhlow.input.properties || {}
+			};
+		}
+
+		// Extrair seção 'output' (dados de saída produzidos)
+		if (parsedPhlow.output && typeof parsedPhlow.output === 'object') {
+			schema.output = {
+				type: parsedPhlow.output.type || 'object',
+				required: parsedPhlow.output.required || false,
+				aditional_propierties: parsedPhlow.output.aditional_propierties || false,
+				properties: parsedPhlow.output.properties || {}
+			};
+		}
+
+		// Debug logging
+		console.log(`Successfully parsed Phlow module schema for ${moduleName}`);
+		if (schema.with?.properties) {
+			console.log(`Available 'with' properties:`, Object.keys(schema.with.properties));
+		}
+		if (schema.input?.properties) {
+			console.log(`Available 'input' properties:`, Object.keys(schema.input.properties));
+		}
+		if (schema.output?.properties) {
+			console.log(`Available 'output' properties:`, Object.keys(schema.output.properties));
+		}
+
+		return schema;
+	} catch (error) {
+		console.error(`Error parsing Phlow module file for ${moduleName}:`, error);
 		return null;
 	}
 }
@@ -780,14 +1048,18 @@ export function activate(context: vscode.ExtensionContext) {
 			placeHolder: 'Select phlow type'
 		});
 
-		if (!phlowType) return;
+		if (!phlowType) {
+			return;
+		}
 
 		const phlowName = await vscode.window.showInputBox({
 			prompt: 'Phlow name',
 			placeHolder: 'my-phlow'
 		});
 
-		if (!phlowName) return;
+		if (!phlowName) {
+			return;
+		}
 
 		let template = '';
 
@@ -1059,14 +1331,16 @@ steps:
 	const hoverProvider = vscode.languages.registerHoverProvider(phlowDocumentSelector, {
 		async provideHover(document, position) {
 			const word = document.getWordRangeAtPosition(position);
-			if (!word) return;
+			if (!word) {
+				return;
+			}
 
 			const wordText = document.getText(word);
 			const line = document.lineAt(position.line).text;
 
 			// Check if this is a module name - try to fetch schema for any module
 			if (line.includes('module:')) {
-				const schema = await fetchModuleSchema(wordText);
+				const schema = await fetchModuleSchema(wordText, document.uri);
 				if (schema) {
 					const hover = new vscode.MarkdownString();
 					hover.isTrusted = true;
@@ -1126,7 +1400,7 @@ steps:
 				// Check if we're in a module's 'with' section
 				const moduleMatch = findModuleContext(document, position);
 				if (moduleMatch) {
-					const schema = await fetchModuleSchema(moduleMatch.moduleName);
+					const schema = await fetchModuleSchema(moduleMatch.moduleName, document.uri);
 					if (schema?.with?.properties) {
 						const completions: vscode.CompletionItem[] = [];
 
@@ -1253,7 +1527,9 @@ steps:
 	context.subscriptions.push(diagnosticCollection);
 
 	async function validateDocument(document: vscode.TextDocument) {
-		if (document.languageId !== 'phlow') return;
+		if (document.languageId !== 'phlow') {
+			return;
+		}
 
 		const diagnostics: vscode.Diagnostic[] = [];
 		const lines = document.getText().split('\n');
@@ -1264,7 +1540,7 @@ steps:
 		for (const moduleInfo of modules) {
 			// Tenta buscar o schema do módulo dinamicamente
 			// Se não existir, o fetchModuleSchema retornará null e será ignorado
-			const schema = await fetchModuleSchema(moduleInfo.name);
+			const schema = await fetchModuleSchema(moduleInfo.name, document.uri);
 			if (schema && moduleInfo.withProperties) {
 				const propertyDiagnostics = await validateModuleProperties(moduleInfo, schema, lines);
 				diagnostics.push(...propertyDiagnostics);
@@ -1298,8 +1574,8 @@ steps:
 			const trimmedLine = line.trim();
 			const currentIndent = line.length - line.trimStart().length;
 
-			// Find module declaration
-			const moduleMatch = line.match(/^\s*-?\s*module:\s*(\w+)/);
+			// Find module declaration (suporta nomes simples e caminhos relativos)
+			const moduleMatch = line.match(/^\s*-?\s*module:\s*([^\s]+)/);
 			if (moduleMatch) {
 				// Save previous module if exists
 				if (currentModule) {
@@ -1532,6 +1808,117 @@ steps:
 		}
 	});
 
+	// File system watcher for local modules (enhanced for relative paths)
+	const localModuleWatcher = vscode.workspace.createFileSystemWatcher('**/*.{phlow,yaml}');
+
+	// Clear cache and revalidate when local modules change
+	localModuleWatcher.onDidChange(async uri => {
+		const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+		const relativePath = vscode.workspace.asRelativePath(uri);
+
+		console.log(`🔄 Local module changed: ${relativePath}`);
+
+		// Clear cache for simple module names
+		if (moduleSchemaCache.has(fileName)) {
+			console.log(`   Clearing cache for module: ${fileName}`);
+			moduleSchemaCache.delete(fileName);
+			moduleNotFoundCache.delete(fileName);
+		}
+
+		// Clear cache for relative paths (handle ./route, ../module, etc.)
+		const moduleDir = path.dirname(uri.fsPath);
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+
+		if (workspaceFolders) {
+			for (const folder of workspaceFolders) {
+				const relativeFromWorkspace = path.relative(folder.uri.fsPath, uri.fsPath);
+				const relativeCacheKey = `./${relativeFromWorkspace.replace(/\\/g, '/')}`;
+				const relativeWithoutExt = relativeCacheKey.replace(/\.(phlow|yaml)$/, '');
+
+				// Clear various possible cache keys for this file
+				const possibleKeys = [
+					relativeCacheKey,
+					relativeWithoutExt,
+					`./${fileName}`,
+					`../${fileName}`,
+					fileName
+				];
+
+				for (const key of possibleKeys) {
+					if (moduleSchemaCache.has(key)) {
+						console.log(`   Clearing relative cache for key: ${key}`);
+						moduleSchemaCache.delete(key);
+						moduleNotFoundCache.delete(key);
+					}
+				}
+			}
+		}
+
+		// Revalidate all open .phlow documents that might use this module
+		await revalidateDocumentsUsingModule(fileName, relativePath);
+	});
+
+	localModuleWatcher.onDidCreate(async uri => {
+		const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+		const relativePath = vscode.workspace.asRelativePath(uri);
+
+		console.log(`➕ Local module created: ${relativePath}`);
+
+		// Clear not-found cache
+		if (moduleNotFoundCache.has(fileName)) {
+			console.log(`   Clearing not-found cache for: ${fileName}`);
+			moduleNotFoundCache.delete(fileName);
+		}
+
+		// Revalidate documents that might now find this module
+		await revalidateDocumentsUsingModule(fileName, relativePath);
+	});
+
+	localModuleWatcher.onDidDelete(uri => {
+		const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+		const relativePath = vscode.workspace.asRelativePath(uri);
+
+		console.log(`❌ Local module deleted: ${relativePath}`);
+
+		if (moduleSchemaCache.has(fileName)) {
+			console.log(`   Clearing cache for deleted module: ${fileName}`);
+			moduleSchemaCache.delete(fileName);
+		}
+
+		// Note: We don't revalidate on delete to avoid flooding with errors
+		// The validation will naturally show errors when the module is not found
+	});
+
+	// Helper function to revalidate documents that use a specific module
+	async function revalidateDocumentsUsingModule(moduleName: string, modulePath: string) {
+		console.log(`🔍 Revalidating documents using module: ${moduleName} (${modulePath})`);
+
+		const phlowDocuments = vscode.workspace.textDocuments.filter(
+			doc => doc.languageId === 'phlow'
+		);
+
+		for (const document of phlowDocuments) {
+			const content = document.getText();
+
+			// Check if document uses this module (simple name or relative path)
+			const modulePatterns = [
+				`module: ${moduleName}`,
+				`module: ./${moduleName}`,
+				`module: ../${moduleName}`,
+				`module: ${modulePath.replace(/\\/g, '/')}`
+			];
+
+			const usesModule = modulePatterns.some(pattern => content.includes(pattern));
+
+			if (usesModule) {
+				console.log(`   Revalidating document: ${vscode.workspace.asRelativePath(document.uri)}`);
+				await validateDocument(document);
+			}
+		}
+	}
+
+	context.subscriptions.push(localModuleWatcher);
+
 	function findModuleContext(document: vscode.TextDocument, position: vscode.Position): { moduleName: string; withinWith: boolean; arrayProperty?: string } | null {
 		let currentModuleName = '';
 		let withinWith = false;
@@ -1569,8 +1956,8 @@ steps:
 				}
 			}
 
-			// Check if we found a module declaration
-			const moduleMatch = line.match(/^\s*-?\s*module:\s*(\w+)/);
+			// Check if we found a module declaration (suporta nomes simples e caminhos relativos)
+			const moduleMatch = line.match(/^\s*-?\s*module:\s*([^\s]+)/);
 			if (moduleMatch) {
 				currentModuleName = moduleMatch[1];
 				withinModule = true;
@@ -1690,7 +2077,9 @@ steps:
 			value: 'cli'
 		});
 
-		if (!moduleName) return;
+		if (!moduleName) {
+			return;
+		}
 
 		vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
@@ -2102,6 +2491,137 @@ steps:
 				return vscode.CompletionItemKind.File;
 		}
 	}
+
+	// Definition provider for module names (Go to module file)
+	const moduleDefinitionProvider = vscode.languages.registerDefinitionProvider(
+		phlowDocumentSelector,
+		{
+			async provideDefinition(document: vscode.TextDocument, position: vscode.Position) {
+				const line = document.lineAt(position.line).text;
+
+				console.log(`🔍 Module definition request at position ${position.character} in line: "${line}"`);
+
+				// Check if we're on a module name in a "module:" line
+				if (line.includes('module:')) {
+					// Extract the module name from the line (supports relative paths)
+					const moduleMatch = line.match(/module:\s*([^\s]+)/);
+					if (moduleMatch) {
+						const moduleName = moduleMatch[1];
+						const moduleStartIndex = line.indexOf(moduleName);
+						const moduleEndIndex = moduleStartIndex + moduleName.length;
+
+						console.log(`   Module found: "${moduleName}" at positions ${moduleStartIndex}-${moduleEndIndex}, cursor at ${position.character}`);
+
+						// Check if cursor is within the module name range
+						if (position.character >= moduleStartIndex && position.character <= moduleEndIndex) {
+							console.log(`   ✅ Cursor is within module name range, searching for: ${moduleName}`);
+
+							// Find the module file
+							const moduleLocation = await findModuleFileLocation(moduleName, document.uri);
+							if (moduleLocation) {
+								console.log(`   ✅ Found module file: ${moduleLocation.fsPath}`);
+								return new vscode.Location(moduleLocation, new vscode.Position(0, 0));
+							} else {
+								console.log(`   ❌ Module file not found: ${moduleName}`);
+							}
+						} else {
+							console.log(`   ❌ Cursor is outside module name range`);
+						}
+					}
+				}
+
+				return undefined;
+			}
+		}
+	);
+
+	// Helper function to find module file location
+	async function findModuleFileLocation(moduleName: string, currentDocumentUri: vscode.Uri): Promise<vscode.Uri | null> {
+		console.log(`🔍 Looking for module file: ${moduleName}`);
+
+		// Check if it's a relative path
+		const isRelativePath = moduleName.startsWith('./') || moduleName.startsWith('../');
+
+		if (isRelativePath) {
+			console.log(`   Searching for relative module: ${moduleName}`);
+			const currentDocumentDir = vscode.Uri.joinPath(currentDocumentUri, '..');
+
+			// Try .phlow file first
+			const phlowModulePath = vscode.Uri.joinPath(currentDocumentDir, `${moduleName}.phlow`);
+			try {
+				await vscode.workspace.fs.stat(phlowModulePath);
+				console.log(`   Found relative .phlow module: ${phlowModulePath.fsPath}`);
+				return phlowModulePath;
+			} catch (error) {
+				console.log(`   Relative .phlow not found: ${phlowModulePath.fsPath}`);
+			}
+
+			// Try .yaml file
+			const yamlModulePath = vscode.Uri.joinPath(currentDocumentDir, `${moduleName}.yaml`);
+			try {
+				await vscode.workspace.fs.stat(yamlModulePath);
+				console.log(`   Found relative .yaml module: ${yamlModulePath.fsPath}`);
+				return yamlModulePath;
+			} catch (error) {
+				console.log(`   Relative .yaml not found: ${yamlModulePath.fsPath}`);
+			}
+		} else {
+			// Search for absolute module in workspace
+			console.log(`   Searching for absolute module: ${moduleName}`);
+			const workspaceFolders = vscode.workspace.workspaceFolders;
+
+			if (workspaceFolders) {
+				for (const folder of workspaceFolders) {
+					// Try root level .phlow file
+					const phlowModulePath = vscode.Uri.joinPath(folder.uri, `${moduleName}.phlow`);
+					try {
+						await vscode.workspace.fs.stat(phlowModulePath);
+						console.log(`   Found workspace .phlow module: ${phlowModulePath.fsPath}`);
+						return phlowModulePath;
+					} catch (error) {
+						// Continue searching
+					}
+
+					// Try root level .yaml file
+					const yamlModulePath = vscode.Uri.joinPath(folder.uri, `${moduleName}.yaml`);
+					try {
+						await vscode.workspace.fs.stat(yamlModulePath);
+						console.log(`   Found workspace .yaml module: ${yamlModulePath.fsPath}`);
+						return yamlModulePath;
+					} catch (error) {
+						// Continue searching
+					}
+
+					// Try modules/ subdirectory
+					const modulesDir = vscode.Uri.joinPath(folder.uri, 'modules');
+					try {
+						// Try modules/{moduleName}/{moduleName}.phlow
+						const moduleSubdirPhlow = vscode.Uri.joinPath(modulesDir, moduleName, `${moduleName}.phlow`);
+						await vscode.workspace.fs.stat(moduleSubdirPhlow);
+						console.log(`   Found modules subdir .phlow: ${moduleSubdirPhlow.fsPath}`);
+						return moduleSubdirPhlow;
+					} catch (error) {
+						// Continue searching
+					}
+
+					try {
+						// Try modules/{moduleName}/phlow.yaml
+						const moduleSubdirYaml = vscode.Uri.joinPath(modulesDir, moduleName, 'phlow.yaml');
+						await vscode.workspace.fs.stat(moduleSubdirYaml);
+						console.log(`   Found modules subdir .yaml: ${moduleSubdirYaml.fsPath}`);
+						return moduleSubdirYaml;
+					} catch (error) {
+						// Continue searching
+					}
+				}
+			}
+		}
+
+		console.log(`   ❌ Module file not found: ${moduleName}`);
+		return null;
+	}
+
+	context.subscriptions.push(moduleDefinitionProvider);
 
 	// Definition provider for !import and !include (click to go)
 	const definitionProvider = vscode.languages.registerDefinitionProvider(

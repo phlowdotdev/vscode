@@ -42,13 +42,17 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 
 ### ✨ Enhanced Module Support
 - **Dynamic module validation** - Validates any module from the Phlow repository
-- **Automatic module discovery** - Fetches available modules from GitHub API
+- **Local module support** - Full support for local modules in workspace
+- **Automatic module discovery** - Fetches available modules from GitHub API and local files
 - **Smart autocompletion** for module properties based on their schemas
 - **Enhanced hover documentation** with module-specific information and links
 - **Dynamic schema fetching** from GitHub repository for up-to-date module information
+- **Local module priority** - Local modules take precedence over remote ones
+- **Multiple search locations** - Searches in root, modules/ subdirectory
 - **Property validation** for module `with` configurations
 - **Required property detection** and warnings
-- **No module restrictions** - Use any module that exists in the Phlow repository
+- **File watching** - Automatically updates when local modules change
+- **No module restrictions** - Use any module that exists locally or in the Phlow repository
 
 ### 🔧 Commands
 - **Run Phlow Phlow**: Execute the current phlow in terminal
