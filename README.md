@@ -78,10 +78,13 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 
 ### 🎯 Go to Definition
 - **Module navigation** - Ctrl+Click or F12 on module names to navigate to their files
+- **Include navigation** - Ctrl+Click or F12 on `!include` file paths to open included files
+- **Extension-less support** - Automatically finds `.phlow`, `.yaml`, or `.yml` files
 - **Relative path support** - Works with `./route`, `../utils`, `./modules/auth`, etc.
+- **Arguments aware** - Navigation works even when include has arguments
 - **Multi-format support** - Automatically finds `.phlow` or `.yaml` module files
 - **Smart search** - Searches workspace root, modules/ folder, and relative paths
-- **Real-time feedback** - Console logs for debugging module resolution
+- **Real-time feedback** - Console logs for debugging file resolution
 
 ### 💡 IntelliSense
 - Hover for Phlow element documentation

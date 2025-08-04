@@ -1,0 +1,6 @@
+name: return
+description: Example return module
+version: 1.0.0
+
+steps:
+  - return: !phs `Hello from return.phlow!`

@@ -2627,17 +2627,15 @@ steps:
 	const definitionProvider = vscode.languages.registerDefinitionProvider(
 		phlowDocumentSelector,
 		{
-			provideDefinition(document: vscode.TextDocument, position: vscode.Position) {
+			async provideDefinition(document: vscode.TextDocument, position: vscode.Position) {
 				const lineText = document.lineAt(position).text;
-				const wordRange = document.getWordRangeAtPosition(position);
 
-				if (!wordRange) {
-					return undefined;
-				}
+				console.log(`🔍 Include/Import definition request at position ${position.character} in line: "${lineText}"`);
 
 				// Check if we're on a file path after !import or !include
 				const importMatch = lineText.match(/(!import|!include)\s+([^\s]+)/);
 				if (!importMatch) {
+					console.log(`   ❌ No !import or !include found in line`);
 					return undefined;
 				}
 
@@ -2645,32 +2643,86 @@ steps:
 				const filePath = importMatch[2];
 				const documentDir = path.dirname(document.uri.fsPath);
 
+				console.log(`   Found ${directive} with path: "${filePath}"`);
+
 				// Check if the cursor is on the file path
 				const pathStartIndex = lineText.indexOf(filePath);
 				const pathEndIndex = pathStartIndex + filePath.length;
 
+				console.log(`   Path positions: ${pathStartIndex}-${pathEndIndex}, cursor at ${position.character}`);
+
 				if (position.character < pathStartIndex || position.character > pathEndIndex) {
+					console.log(`   ❌ Cursor is outside file path range`);
 					return undefined;
 				}
 
-				// Resolve the file path
-				let resolvedPath: string;
-				if (path.isAbsolute(filePath)) {
-					// Already absolute
-					resolvedPath = filePath;
+				console.log(`   ✅ Cursor is within file path, searching for: ${filePath}`);
+
+				// Find the actual file
+				const targetLocation = await findIncludeFileLocation(filePath, documentDir);
+				if (targetLocation) {
+					console.log(`   ✅ Found file: ${targetLocation.fsPath}`);
+					return new vscode.Location(targetLocation, new vscode.Position(0, 0));
 				} else {
-					// Relative to current document
-					resolvedPath = path.resolve(documentDir, filePath);
+					console.log(`   ❌ File not found: ${filePath}`);
 				}
 
-				// Create URI and location
-				const targetUri = vscode.Uri.file(resolvedPath);
-				const location = new vscode.Location(targetUri, new vscode.Position(0, 0));
-
-				return location;
+				return undefined;
 			}
 		}
 	);
+
+	// Helper function to find include/import file location with extension detection
+	async function findIncludeFileLocation(filePath: string, documentDir: string): Promise<vscode.Uri | null> {
+		console.log(`🔍 Looking for include file: ${filePath} from directory: ${documentDir}`);
+
+		// Resolve the base path
+		let basePath: string;
+		if (path.isAbsolute(filePath)) {
+			basePath = filePath;
+		} else {
+			basePath = path.resolve(documentDir, filePath);
+		}
+
+		console.log(`   Base path resolved to: ${basePath}`);
+
+		// Check if the file already has an extension
+		const hasExtension = path.extname(filePath) !== '';
+
+		if (hasExtension) {
+			// File has extension, try it directly
+			console.log(`   File has extension, trying directly: ${basePath}`);
+			const directUri = vscode.Uri.file(basePath);
+			try {
+				await vscode.workspace.fs.stat(directUri);
+				console.log(`   ✅ Found file with extension: ${basePath}`);
+				return directUri;
+			} catch (error) {
+				console.log(`   ❌ File with extension not found: ${basePath}`);
+				return null;
+			}
+		} else {
+			// File has no extension, try .phlow, .yaml, .yml in order
+			const extensions = ['.phlow', '.yaml', '.yml'];
+
+			for (const ext of extensions) {
+				const testPath = basePath + ext;
+				console.log(`   Trying with extension: ${testPath}`);
+
+				const testUri = vscode.Uri.file(testPath);
+				try {
+					await vscode.workspace.fs.stat(testUri);
+					console.log(`   ✅ Found file with ${ext}: ${testPath}`);
+					return testUri;
+				} catch (error) {
+					console.log(`   File not found with ${ext}: ${testPath}`);
+				}
+			}
+
+			console.log(`   ❌ File not found with any extension: ${basePath}`);
+			return null;
+		}
+	}
 
 	context.subscriptions.push(definitionProvider);
 

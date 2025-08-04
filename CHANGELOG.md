@@ -20,6 +20,13 @@
 - **Numeric values**: Integer and float detection with appropriate highlighting
 - **PHS expressions**: `!phs` directives inside quoted strings with full syntax support
 
+#### 🎯 Enhanced Go to Definition for !include
+- **Extension-less includes**: `!include ./return` automatically finds `.phlow`, `.yaml`, or `.yml`
+- **Smart file search**: Tries extensions in order: `.phlow` → `.yaml` → `.yml`
+- **Arguments support**: Works with include arguments `!include ./file target=value`
+- **Relative paths**: Full support for `./`, `../` paths with automatic extension detection
+- **Detailed logging**: Console logs for debugging include file resolution
+
 ### Improved
 
 #### 🎯 Syntax Highlighting Engine
@@ -44,10 +51,15 @@
 
 #### 📝 Syntax Support
 ```yaml
-# All these patterns are now properly highlighted:
+# All these patterns are now properly highlighted and navigable:
 !include ./return.phlow target=route_get_authors output=simple_result
 !include ./config.phlow enabled=true port=8080 timeout=30.5
 !include ./template.phlow data='!phs payload' format="!phs main.format"
+
+# Extension-less includes with Go to Definition (NEW!)
+!include ./return target=handler                    # Finds return.phlow
+!include ./config debug=true                        # Finds config.yaml or config.yml
+!include ../shared/utils operation=transform         # Finds utils.phlow, utils.yaml, or utils.yml
 ```
 
 #### 🏗️ Grammar Architecture

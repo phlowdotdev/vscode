@@ -41,6 +41,12 @@ The extension now provides **intelligent syntax highlighting** for `!include` ar
    - `"!phs main.config"`
    - Complete PHS highlighting inside quotes
 
+7. **🎯 Enhanced Go to Definition** (NEW!)
+   - **Extension-less navigation**: `!include ./return` finds `return.phlow`, `return.yaml`, or `return.yml`
+   - **Smart file search**: Tries extensions in order `.phlow` → `.yaml` → `.yml`
+   - **Arguments support**: Works with `!include ./file target=value`
+   - **Console feedback**: Detailed logging for debugging file resolution
+
 ### 🎯 Usage Examples
 
 #### Simple Arguments
@@ -48,7 +54,7 @@ The extension now provides **intelligent syntax highlighting** for `!include` ar
 - payload: !include ./config.phlow name=my_service port=3000 enabled=true
 ```
 
-#### Complex Arguments with PHS
+#### Complex Arguments with PHS and Navigation
 ```yaml
 - payload: !include ./template.phlow 
     target=route_handler
@@ -56,6 +62,16 @@ The extension now provides **intelligent syntax highlighting** for `!include` ar
     format="!phs { type: 'json', indent: 2 }"
     debug=true
 ```
+**Navigation**: Ctrl+Click on `./template.phlow` opens the file
+**Highlighting**: All arguments are properly colored by type
+
+#### Extension-less Includes with Auto-Detection (NEW!)
+```yaml
+- payload: !include ./return target=handler        # Finds return.phlow
+- config: !include ./settings debug=true          # Finds settings.yaml or settings.yml  
+- utils: !include ../shared/common operation=transform  # Works with relative paths
+```
+**Smart Search**: Automatically tries `.phlow`, `.yaml`, `.yml` extensions
 
 #### Multi-line Arguments
 ```yaml

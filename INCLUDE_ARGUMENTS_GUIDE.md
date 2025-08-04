@@ -116,6 +116,39 @@ steps:
 ✅ **Path highlighting**: File paths are clearly distinguished
 ✅ **Operator highlighting**: Assignment operators are highlighted
 ✅ **Parameter naming**: Argument names are highlighted as variables
+✅ **Go to Definition**: Ctrl+Click or F12 to navigate to included files
+✅ **Extension-less includes**: Automatically finds `.phlow`, `.yaml`, or `.yml` files
+
+## Go to Definition Support
+
+### How it Works
+- **Ctrl+Click** or **F12** on any file path in `!include` directives
+- **Smart extension detection**: If no extension provided, tries `.phlow` → `.yaml` → `.yml`
+- **Arguments awareness**: Works even when arguments are present
+- **Relative path support**: Full support for `./` and `../` paths
+
+### Examples with Navigation
+
+```yaml
+# These all support Go to Definition:
+!include ./return                    # Finds return.phlow, return.yaml, or return.yml
+!include ./config target=handler     # Finds config.* and ignores arguments
+!include ../shared/utils operation=transform  # Works with relative paths
+!include ./template.phlow data='!phs payload' # Works with explicit extensions
+```
+
+### Extension Search Order
+1. **If extension provided**: Use exact file path
+2. **If no extension**: Try in order:
+   - `filename.phlow`
+   - `filename.yaml` 
+   - `filename.yml`
+
+### Console Logging
+The extension provides detailed console logs for debugging:
+- File search attempts
+- Extension resolution
+- Success/failure feedback
 
 ## Benefits
 
