@@ -4,7 +4,14 @@
 
 ### Added
 
-#### 🎨 Enhanced !include Arguments Syntax Highlighting
+#### � Local .phlow Module Autocomplete (NEW!)
+- **Property detection**: Extracts existing `with` properties from local `.phlow` modules
+- **Smart completions**: Shows available properties when configuring local modules
+- **Contextual hints**: Displays source module file and property values
+- **Flexible configuration**: Allows adding new properties beyond existing ones
+- **Seamless integration**: Works alongside existing binary module autocomplete
+
+#### �🎨 Enhanced !include Arguments Syntax Highlighting
 - **NEW FEATURE**: Advanced syntax highlighting for `!include` directive arguments
 - **Type-aware highlighting**: Different colors for strings, numbers, booleans in arguments
 - **PHS integration**: Full PHS syntax highlighting inside quoted argument values

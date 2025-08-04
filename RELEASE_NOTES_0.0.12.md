@@ -1,6 +1,54 @@
 # Release Notes - Version 0.0.12
 
-## 🎨 New Feature: Enhanced !include Arguments Syntax Highlighting
+## 🎨 New Feature: Enhanced !include ### 🚀 New Features
+
+#### Enum Value Validation (NEW!)
+```yaml
+modules:
+  - module: my-module
+    with:
+      log_level: debug          # ✅ Valid enum value
+      environment: development  # ✅ Valid enum value  
+      ssl_mode: invalid         # ❌ Error: not in enum ["disable", "allow", "prefer", "require"]
+```
+**Smart Features**: 
+- **Real-time validation** against enum values in module schemas
+- **Enum completions** showing available values when typing
+- **Type-aware parsing** handles strings, numbers, and booleans
+- **PHS expression support** skips validation for dynamic values
+
+#### Local .phlow Module Autocomplete (NEW!)
+```yaml
+modules:
+  - module: ./my-local-module     # Points to my-local-module.phlow
+    with:
+      # ✨ Autocomplete shows existing properties from my-local-module.phlow:
+      host: localhost              # ✅ Detected from target module
+      port: 3000                   # ✅ Detected from target module  
+      database: mydb               # ✅ Detected from target module
+      new_property: value          # ✅ Can add new properties
+```
+**Smart Features**: 
+- **Existing property detection** from local `.phlow` modules
+- **Contextual hints** showing source module file
+- **Flexible configuration** allowing new properties
+
+#### Extension-less Includes with Auto-Detection and Validation (NEW!)
+```yaml
+# Navigation + Validation
+- payload: !include ./return target=handler        # ✅ Finds return.phlow + validates 'target'
+- config: !include ./settings debug=true          # ✅ Finds settings.yaml + validates 'debug'  
+- utils: !include ../shared/common operation=transform  # ✅ Navigation + validation
+
+# Validation Examples
+- payload: !include ./return target=route_get_authors  # ✅ 'target' used in return.phlow
+- payload: !include ./return unused_arg=value          # ⚠️  Warning: 'unused_arg' not used
+- payload: !include ./return target=handler extra=123  # ⚠️  Warning: 'extra' not used
+```
+**Smart Features**: 
+- **Auto-extension detection** for navigation
+- **Real-time argument validation** with warnings
+- **!arg usage analysis** in target filesighlighting
 
 This release introduces **advanced syntax highlighting** for `!include` directive arguments, making complex include statements much more readable and maintainable.
 

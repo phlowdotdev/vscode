@@ -1400,8 +1400,15 @@ steps:
 				// Check if we're in a module's 'with' section
 				const moduleMatch = findModuleContext(document, position);
 				if (moduleMatch) {
+					// First try to get schema for binary modules
 					const schema = await fetchModuleSchema(moduleMatch.moduleName, document.uri);
 					if (schema?.with?.properties) {
+						// Check if we're typing a value for an enum property
+						const enumCompletions = await getEnumValueCompletions(document, position, schema, moduleMatch);
+						if (enumCompletions.length > 0) {
+							return enumCompletions;
+						}
+
 						const completions: vscode.CompletionItem[] = [];
 
 						// If we're in an array context, suggest array item properties
@@ -1449,17 +1456,34 @@ steps:
 						Object.entries(schema.with.properties).forEach(([key, prop]: [string, any]) => {
 							const completion = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
 							completion.detail = prop.description || 'Module property';
-							completion.documentation = new vscode.MarkdownString(
-								`**${key}**\n\n` +
+							
+							// Build documentation with enum information
+							let documentation = `**${key}**\n\n` +
 								`Type: \`${prop.type || 'any'}\`\n\n` +
 								`Required: ${prop.required ? 'Yes' : 'No'}\n\n` +
-								`${prop.description || 'No description available'}`
-							);
+								`${prop.description || 'No description available'}`;
 
-							// Add default value if available
+							// Add enum values if available
+							if (prop.enum && Array.isArray(prop.enum)) {
+								const formattedEnumValues = prop.enum.map((val: any) => {
+									if (typeof val === 'string') {
+										return `"${val}"`;
+									}
+									return String(val);
+								}).join(', ');
+								documentation += `\n\n**Allowed values:** ${formattedEnumValues}`;
+							}
+
+							completion.documentation = new vscode.MarkdownString(documentation);
+
+							// Add default value if available, or first enum value for enum types
 							if (prop.default !== undefined) {
 								completion.insertText = `${key}: ${formatYamlValue(prop.default, prop.type)}`;
 								completion.documentation.appendMarkdown(`\n\nDefault: \`${prop.default}\``);
+							} else if (prop.enum && Array.isArray(prop.enum) && prop.enum.length > 0) {
+								// For enum properties, suggest the first enum value
+								const firstEnumValue = prop.enum[0];
+								completion.insertText = `${key}: ${formatYamlValue(firstEnumValue, prop.type)}`;
 							} else {
 								completion.insertText = `${key}: `;
 							}
@@ -1486,6 +1510,12 @@ steps:
 						}
 
 						return completions;
+					} else {
+						// If no schema found, try to provide completions for local .phlow modules
+						const localModuleCompletions = await getLocalPhlowModuleCompletions(moduleMatch.moduleName, document.uri);
+						if (localModuleCompletions.length > 0) {
+							return localModuleCompletions;
+						}
 					}
 				}
 
@@ -1522,6 +1552,215 @@ steps:
 	);
 
 	context.subscriptions.push(completionProvider);
+
+	// Function to get enum value completions when typing property values
+	async function getEnumValueCompletions(
+		document: vscode.TextDocument, 
+		position: vscode.Position, 
+		schema: ModuleSchema, 
+		moduleMatch: { moduleName: string; withinWith: boolean; arrayProperty?: string }
+	): Promise<vscode.CompletionItem[]> {
+		const lineText = document.lineAt(position.line).text;
+		const colonIndex = lineText.indexOf(':');
+		
+		// Check if we're after a colon (typing a value)
+		if (colonIndex === -1 || position.character <= colonIndex + 1) {
+			return []; // Not typing a value
+		}
+
+		// Extract the property name
+		const propertyNamePart = lineText.substring(0, colonIndex).trim();
+		const propertyName = propertyNamePart.replace(/^\s*-?\s*/, ''); // Remove leading dash and spaces
+
+		if (!propertyName) {
+			return []; // No property name found
+		}
+
+		// Find the property schema
+		let propertySchema: any = null;
+
+		// Handle array context
+		if (moduleMatch.arrayProperty) {
+			const arrayPropertySchema = schema.with?.properties[moduleMatch.arrayProperty];
+			if (arrayPropertySchema?.type === 'array' && arrayPropertySchema.items?.properties) {
+				propertySchema = arrayPropertySchema.items.properties[propertyName];
+			}
+		} else {
+			// Top-level property
+			propertySchema = schema.with?.properties[propertyName];
+		}
+
+		// Check if this property has enum values
+		if (!propertySchema || !propertySchema.enum || !Array.isArray(propertySchema.enum)) {
+			return []; // No enum values to suggest
+		}
+
+		console.log(`Providing enum completions for property: ${propertyName}, values: [${propertySchema.enum.join(', ')}]`);
+
+		// Create completions for each enum value
+		const completions: vscode.CompletionItem[] = [];
+
+		for (const enumValue of propertySchema.enum) {
+			const completion = new vscode.CompletionItem(String(enumValue), vscode.CompletionItemKind.EnumMember);
+			completion.detail = `Enum value for ${propertyName}`;
+			
+			// Format the insert text based on the value type
+			if (typeof enumValue === 'string') {
+				completion.insertText = `"${enumValue}"`;
+				completion.documentation = new vscode.MarkdownString(
+					`**String enum value:** \`"${enumValue}"\`\n\n` +
+					`Valid option for property \`${propertyName}\``
+				);
+			} else if (typeof enumValue === 'boolean') {
+				completion.insertText = String(enumValue);
+				completion.documentation = new vscode.MarkdownString(
+					`**Boolean enum value:** \`${enumValue}\`\n\n` +
+					`Valid option for property \`${propertyName}\``
+				);
+			} else {
+				completion.insertText = String(enumValue);
+				completion.documentation = new vscode.MarkdownString(
+					`**Enum value:** \`${enumValue}\`\n\n` +
+					`Valid option for property \`${propertyName}\``
+				);
+			}
+
+			// Set sort text to maintain enum order
+			completion.sortText = `enum_${propertySchema.enum.indexOf(enumValue).toString().padStart(3, '0')}`;
+			
+			completions.push(completion);
+		}
+
+		// Add a header hint
+		if (completions.length > 0) {
+			const hint = new vscode.CompletionItem(`📋 ${propertyName} values`, vscode.CompletionItemKind.Text);
+			hint.detail = `${propertySchema.enum.length} allowed values`;
+			hint.documentation = new vscode.MarkdownString(
+				`**Property:** \`${propertyName}\`\n\n` +
+				`**Type:** enum\n\n` +
+				`**Allowed values:** ${propertySchema.enum.map((v: any) => `\`${v}\``).join(', ')}\n\n` +
+				`Choose one of the values below:`
+			);
+			hint.sortText = '000_hint';
+			hint.insertText = '';
+			completions.unshift(hint);
+		}
+
+		return completions;
+	}
+
+	// Function to get completions for local .phlow modules based on existing 'with' properties
+	async function getLocalPhlowModuleCompletions(moduleName: string, currentDocumentUri: vscode.Uri): Promise<vscode.CompletionItem[]> {
+		console.log(`🔍 Looking for local .phlow module completions: ${moduleName}`);
+		
+		// Find the local module file
+		const moduleFileUri = await findModuleFileLocation(moduleName, currentDocumentUri);
+		if (!moduleFileUri || !moduleFileUri.fsPath.endsWith('.phlow')) {
+			console.log(`   ❌ No local .phlow module found for: ${moduleName}`);
+			return [];
+		}
+
+		try {
+			console.log(`   ✅ Found local .phlow module: ${moduleFileUri.fsPath}`);
+			
+			// Read the module file content
+			const moduleFileContent = await vscode.workspace.fs.readFile(moduleFileUri);
+			const moduleText = moduleFileContent.toString();
+
+			// Parse existing 'with' properties from the module file
+			const existingProperties = parseWithPropertiesFromPhlowModule(moduleText);
+			
+			if (existingProperties.length === 0) {
+				console.log(`   ❌ No 'with' properties found in module: ${moduleName}`);
+				return [];
+			}
+
+			console.log(`   ✅ Found ${existingProperties.length} 'with' properties in module: ${moduleName}`);
+			
+			// Create completion items for existing properties
+			const completions: vscode.CompletionItem[] = [];
+
+			for (const property of existingProperties) {
+				const completion = new vscode.CompletionItem(property.name, vscode.CompletionItemKind.Property);
+				completion.detail = `Local module property (${path.basename(moduleFileUri.fsPath)})`;
+				completion.documentation = new vscode.MarkdownString(
+					`**${property.name}** (from local module)\n\n` +
+					`Source: \`${path.basename(moduleFileUri.fsPath)}\`\n\n` +
+					`Value: \`${property.value || 'undefined'}\`\n\n` +
+					`This property exists in the local module's 'with' section.`
+				);
+
+				completion.insertText = `${property.name}: `;
+				completion.sortText = `1_${property.name}`; // After required properties
+				completions.push(completion);
+			}
+
+			// Add a hint that this is a local module
+			const localHint = new vscode.CompletionItem('ℹ️ Local Module', vscode.CompletionItemKind.Text);
+			localHint.detail = 'Properties from local .phlow module';
+			localHint.documentation = new vscode.MarkdownString(
+				`**Local Module:** \`${path.basename(moduleFileUri.fsPath)}\`\n\n` +
+				`These properties are extracted from the existing 'with' section of the local module file.\n\n` +
+				`You can add additional properties or modify existing ones.`
+			);
+			localHint.sortText = '0_hint';
+			localHint.insertText = '';
+			completions.unshift(localHint);
+
+			return completions;
+
+		} catch (error) {
+			console.log(`   ❌ Error reading local module file: ${error}`);
+			return [];
+		}
+	}
+
+	// Parse 'with' properties from a .phlow module file content
+	function parseWithPropertiesFromPhlowModule(moduleText: string): Array<{name: string, value?: string}> {
+		const properties: Array<{name: string, value?: string}> = [];
+		const lines = moduleText.split('\n');
+		
+		let withinWith = false;
+		let withIndent = 0;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			const trimmedLine = line.trim();
+			const currentIndent = line.length - line.trimStart().length;
+
+			// Find 'with:' section
+			if (trimmedLine === 'with:') {
+				withinWith = true;
+				withIndent = currentIndent;
+				continue;
+			}
+
+			// Exit 'with:' section if we're back to lower or equal indent
+			if (withinWith && trimmedLine && currentIndent <= withIndent && !trimmedLine.startsWith('with:')) {
+				withinWith = false;
+			}
+
+			// Parse properties within 'with:' section
+			if (withinWith && currentIndent > withIndent && trimmedLine.includes(':')) {
+				const colonIndex = trimmedLine.indexOf(':');
+				const propertyName = trimmedLine.substring(0, colonIndex).trim();
+				const propertyValue = trimmedLine.substring(colonIndex + 1).trim();
+
+				// Skip array items markers and nested objects without property names
+				if (!propertyName.startsWith('-') && propertyName && !propertyName.includes(' ')) {
+					// Only add top-level properties (direct children of 'with:')
+					if (currentIndent === withIndent + 2) {
+						properties.push({
+							name: propertyName,
+							value: propertyValue || undefined
+						});
+					}
+				}
+			}
+		}
+
+		return properties;
+	}
 	// Document validation for modules
 	const diagnosticCollection = vscode.languages.createDiagnosticCollection('phlow');
 	context.subscriptions.push(diagnosticCollection);
@@ -1721,6 +1960,13 @@ steps:
 							));
 						} else if (allowsAdditionalProperties && !validChildProperties.includes(childProperty)) {
 							console.log(`Additional array item property accepted: ${childProperty} for ${parentProperty} in module ${moduleInfo.name} (aditional_propierties: true)`);
+						} else if (validChildProperties.includes(childProperty)) {
+							// Validate enum values for array item properties
+							const childPropertySchema = parentSchema.items.properties[childProperty];
+							const enumValidation = validateEnumValue(prop, childPropertySchema, lines, moduleInfo.name);
+							if (enumValidation) {
+								diagnostics.push(enumValidation);
+							}
 						}
 					}
 					// Check if parent is an object with nested properties
@@ -1738,6 +1984,13 @@ steps:
 							));
 						} else if (allowsAdditionalProperties && !validChildProperties.includes(childProperty)) {
 							console.log(`Additional nested property accepted: ${childProperty} for ${parentProperty} in module ${moduleInfo.name} (aditional_propierties: true)`);
+						} else if (validChildProperties.includes(childProperty)) {
+							// Validate enum values for nested object properties
+							const childPropertySchema = parentSchema.properties[childProperty];
+							const enumValidation = validateEnumValue(prop, childPropertySchema, lines, moduleInfo.name);
+							if (enumValidation) {
+								diagnostics.push(enumValidation);
+							}
 						}
 					}
 				}
@@ -1758,6 +2011,13 @@ steps:
 					));
 				} else if (allowsAdditionalProperties && !validProperties.includes(prop.name)) {
 					console.log(`Additional property accepted: ${prop.name} for module ${moduleInfo.name} (aditional_propierties: true)`);
+				} else if (validProperties.includes(prop.name)) {
+					// Validate enum values for top-level properties
+					const propertySchema = schema.with.properties[prop.name];
+					const enumValidation = validateEnumValue(prop, propertySchema, lines, moduleInfo.name);
+					if (enumValidation) {
+						diagnostics.push(enumValidation);
+					}
 				}
 			}
 		}
@@ -1774,6 +2034,86 @@ steps:
 		}
 
 		return diagnostics;
+	}
+
+	// Function to validate enum values
+	function validateEnumValue(prop: { name: string; range: vscode.Range; lineIndex: number }, propertySchema: any, lines: string[], moduleName: string): vscode.Diagnostic | null {
+		// Check if the property has enum values defined
+		if (!propertySchema || !propertySchema.enum || !Array.isArray(propertySchema.enum)) {
+			return null; // No enum to validate against
+		}
+
+		// Get the current value of the property from the document
+		const line = lines[prop.lineIndex];
+		const colonIndex = line.indexOf(':');
+		if (colonIndex === -1) {
+			return null; // No value to validate
+		}
+
+		const valueString = line.substring(colonIndex + 1).trim();
+		if (!valueString) {
+			return null; // Empty value, let required validation handle it
+		}
+
+		// Parse the value, handling different types
+		let actualValue: any = valueString;
+
+		// Remove quotes if present
+		if ((valueString.startsWith('"') && valueString.endsWith('"')) || 
+			(valueString.startsWith("'") && valueString.endsWith("'"))) {
+			actualValue = valueString.slice(1, -1);
+		}
+		// Parse boolean values
+		else if (valueString.toLowerCase() === 'true') {
+			actualValue = true;
+		}
+		else if (valueString.toLowerCase() === 'false') {
+			actualValue = false;
+		}
+		// Parse numeric values
+		else if (!isNaN(Number(valueString))) {
+			actualValue = Number(valueString);
+		}
+		// Handle PHS expressions - skip validation for dynamic values
+		else if (valueString.includes('!phs')) {
+			console.log(`Skipping enum validation for PHS expression: ${valueString}`);
+			return null;
+		}
+
+		// Check if the actual value is in the enum
+		const enumValues = propertySchema.enum;
+		const isValidEnumValue = enumValues.includes(actualValue);
+
+		if (!isValidEnumValue) {
+			console.log(`Invalid enum value: ${actualValue} for property ${prop.name} in module ${moduleName}. Valid values: [${enumValues.join(', ')}]`);
+			
+			// Create range for the value part only (after the colon)
+			const valueStart = colonIndex + 1;
+			const valueEnd = line.length;
+			const valueRange = new vscode.Range(
+				prop.lineIndex,
+				valueStart,
+				prop.lineIndex,
+				valueEnd
+			);
+
+			// Format enum values for display
+			const formattedEnumValues = enumValues.map((val: any) => {
+				if (typeof val === 'string') {
+					return `"${val}"`;
+				}
+				return String(val);
+			}).join(', ');
+
+			return new vscode.Diagnostic(
+				valueRange,
+				`Invalid value '${actualValue}' for property '${prop.name}'. Expected one of: ${formattedEnumValues}`,
+				vscode.DiagnosticSeverity.Error
+			);
+		}
+
+		console.log(`Valid enum value: ${actualValue} for property ${prop.name} in module ${moduleName}`);
+		return null;
 	}
 
 	// Validate !include directives and their arguments

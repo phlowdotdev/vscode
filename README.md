@@ -97,7 +97,11 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 ### 💡 IntelliSense
 - Hover for Phlow element documentation
 - JSON schema validation
-- Intelligent autocomplete
+- **Module autocomplete**: 
+  - **Binary modules**: Schema-based property completion with type hints
+  - **Local .phlow modules**: Autocomplete based on existing `with` properties from target module
+  - **Validation**: Real-time validation against module schemas  
+  - **Path intellisense**: Smart completion for relative module paths
 
 ## Installation
 
