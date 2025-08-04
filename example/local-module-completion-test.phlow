@@ -9,7 +9,6 @@ modules:
       additional_args: false
       args:
         - name: input
-          description: Input parameter
           index: 1
           type: string
           required: true

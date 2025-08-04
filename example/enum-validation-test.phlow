@@ -9,7 +9,6 @@ modules:
       additional_args: false
       args:
         - name: input
-          description: Input parameter
           index: 1
           type: string
           required: true
@@ -17,7 +16,7 @@ modules:
     with:
       # These should show enum completions and validation
       log_level: debug          # Valid enum value
-      environment: development  # Valid enum value  
+      environment: development  # Valid enum value
       ssl_mode: require         # Valid enum value
       invalid_value: xyz        # Should show error - not in enum
       port: 3000               # Non-enum property

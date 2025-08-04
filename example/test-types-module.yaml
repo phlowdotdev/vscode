@@ -1,0 +1,107 @@
+name: test-types-module
+version: 1.0.0
+description: Test module with different property types for validation testing
+type: script
+with:
+  # String properties
+  valid_string:
+    type: string
+    description: "A valid string property"
+  unquoted_string:
+    type: string
+    description: "String that can be unquoted"
+  empty_string:
+    type: string
+    description: "Can be empty string"
+
+  # Number properties
+  valid_number:
+    type: number
+    description: "A numeric value (integer or float)"
+  valid_float:
+    type: number
+    description: "A floating point number"
+  valid_integer:
+    type: integer
+    description: "An integer value only"
+  invalid_number:
+    type: number
+    description: "Should be a number"
+
+  # Boolean properties
+  valid_true:
+    type: boolean
+    description: "Boolean true value"
+  valid_false:
+    type: boolean
+    description: "Boolean false value"
+  quoted_boolean:
+    type: boolean
+    description: "Boolean in quotes"
+  invalid_boolean:
+    type: boolean
+    description: "Should be true or false"
+
+  # Array properties
+  inline_array:
+    type: array
+    description: "Array in inline format"
+  empty_array:
+    type: array
+    description: "Empty array"
+  multiline_array:
+    type: array
+    description: "Array with items on separate lines"
+    items:
+      type: string
+  invalid_array:
+    type: array
+    description: "Should be an array"
+
+  # Object properties
+  inline_object:
+    type: object
+    description: "Object in inline format"
+  empty_object:
+    type: object
+    description: "Empty object"
+  multiline_object:
+    type: object
+    description: "Object with properties on separate lines"
+    properties:
+      nested_key:
+        type: string
+      another_key:
+        type: string
+  invalid_object:
+    type: object
+    description: "Should be an object"
+
+  # Enum properties
+  valid_log_level:
+    type: string
+    enum: ["debug", "info", "warn", "error"]
+    description: "Valid logging level"
+  invalid_log_level:
+    type: string
+    enum: ["debug", "info", "warn", "error"]
+    description: "Should be a valid log level"
+
+  # Dynamic properties (PHS expressions)
+  dynamic_string:
+    type: string
+    description: "Dynamic string from environment"
+  dynamic_number:
+    type: number
+    description: "Dynamic number from environment"
+
+steps:
+  - payload:
+      config:
+        string_val: !phs with.valid_string
+        number_val: !phs with.valid_number
+        bool_val: !phs with.valid_true
+        array_val: !phs with.inline_array
+        object_val: !phs with.inline_object
+        log_level: !phs with.valid_log_level
+  - return: !phs payload
