@@ -28,6 +28,7 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 ### ✨ Phlow-Specific Features
 - Special highlighting for Phlow keywords (`main`, `modules`, `steps`, etc.)
 - Recognition of special directives (`!phs`, `!include`, `!import`)
+- **Enhanced !include arguments**: Type-aware syntax highlighting for include arguments
 - Highlighting for known modules (cli, postgres, log, http_server)
 - Phlow-specific schema validation for phlows
 
@@ -43,6 +44,9 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 ### ✨ Enhanced Module Support
 - **Dynamic module validation** - Validates any module from the Phlow repository
 - **Local module support** - Full support for local modules in workspace
+- **Phlow Modules (.phlow)** - Support for both `.phlow` and `.yaml` module formats
+- **Relative path modules** - Support for `./route`, `../utils`, etc.
+- **Go to Definition** - Ctrl+Click or F12 to navigate to module files
 - **Automatic module discovery** - Fetches available modules from GitHub API and local files
 - **Smart autocompletion** for module properties based on their schemas
 - **Enhanced hover documentation** with module-specific information and links
@@ -52,6 +56,7 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - **Property validation** for module `with` configurations
 - **Required property detection** and warnings
 - **File watching** - Automatically updates when local modules change
+- **Real-time cache invalidation** - Smart cache management for local modules
 - **No module restrictions** - Use any module that exists locally or in the Phlow repository
 
 ### 🔧 Commands
@@ -70,6 +75,13 @@ A complete VS Code extension for the [Phlow](https://phlow.dev) language - the l
 - **Quick Navigation**: Jump to test code with a single click
 
 > **💡 Tip**: Open Test Explorer with `View > Test Explorer` or `Ctrl+Shift+T`
+
+### 🎯 Go to Definition
+- **Module navigation** - Ctrl+Click or F12 on module names to navigate to their files
+- **Relative path support** - Works with `./route`, `../utils`, `./modules/auth`, etc.
+- **Multi-format support** - Automatically finds `.phlow` or `.yaml` module files
+- **Smart search** - Searches workspace root, modules/ folder, and relative paths
+- **Real-time feedback** - Console logs for debugging module resolution
 
 ### 💡 IntelliSense
 - Hover for Phlow element documentation
@@ -177,6 +189,33 @@ let user_data = main.user_name;
 process_data(user_data)
 ```
 
+### Phlow with Local Modules and Go to Definition
+```yaml
+main: http_server
+name: API with Local Modules
+version: 1.0.0
+description: Using local modules with navigation support
+
+modules:
+  # Ctrl+Click on these module names to navigate to their files
+  - module: ./route        # Goes to route.phlow or route.yaml in same folder
+  - module: ../auth        # Goes to auth.phlow or auth.yaml in parent folder
+  - module: cors           # Searches in workspace and modules/ folder
+    with:
+      origins: ["*"]
+      methods: ["GET", "POST"]
+
+steps:
+  - use: route
+    with:
+      method: GET
+      path: /api/users
+  - use: cors
+  - return:
+      status: 200
+      body: !phs payload
+```
+
 ### Phlow with Tests
 ```yaml
 main: cli
@@ -224,11 +263,33 @@ message: !phs `Hello, ${main.name}!`
 condition: !phs main.age > 18
 ```
 
-### `!include` - Include Files
-Include content from other YAML files:
+### `!include` - Include Files with Arguments
+Include content from other files with typed arguments:
 ```yaml
+# Basic include
 modules: !include modules.yaml
+
+# Include with arguments (NEW!)
+result: !include ./return.phlow target=route_get_authors output='!phs payload'
+
+# Multiple arguments with different types
+config: !include ./config.phlow 
+  name=my_service 
+  port=3000 
+  enabled=true 
+  data='!phs main.input'
 ```
+
+**Syntax Highlighting Features**:
+- 🎨 **File paths**: Clearly highlighted (green)
+- 🔧 **Parameter names**: Highlighted as variables (blue) 
+- ⚡ **Assignment operators**: `=` highlighted (gray)
+- 📝 **String values**: Quoted and unquoted strings (green)
+- 🔢 **Numbers**: Integer and float highlighting (cyan)
+- ✅ **Booleans**: `true`/`false` highlighted (orange)
+- 🚀 **PHS expressions**: Full PHS syntax in quoted values
+
+> **📖 See [INCLUDE_ARGUMENTS_GUIDE.md](./INCLUDE_ARGUMENTS_GUIDE.md) for detailed syntax examples**
 
 ### `!import` - Import Scripts
 Import and execute PHS scripts:

@@ -1,5 +1,67 @@
 # Change Log
 
+## [0.0.12] - 2025-08-04
+
+### Added
+
+#### 🎨 Enhanced !include Arguments Syntax Highlighting
+- **NEW FEATURE**: Advanced syntax highlighting for `!include` directive arguments
+- **Type-aware highlighting**: Different colors for strings, numbers, booleans in arguments
+- **PHS integration**: Full PHS syntax highlighting inside quoted argument values
+- **Smart parameter detection**: Argument names highlighted as variables
+- **Quote support**: Proper handling of single and double quoted values
+- **Multi-line arguments**: Support for arguments spanning multiple lines
+
+#### 🔧 Include Arguments Features
+- **File path highlighting**: Clear distinction of file paths from arguments
+- **Assignment operators**: Highlighted `=` operators between parameters and values
+- **Unquoted strings**: Support for simple identifiers without quotes
+- **Boolean values**: `true`/`false` highlighted as language constants
+- **Numeric values**: Integer and float detection with appropriate highlighting
+- **PHS expressions**: `!phs` directives inside quoted strings with full syntax support
+
+### Improved
+
+#### 🎯 Syntax Highlighting Engine
+- **Regex optimization**: More precise patterns for argument parsing
+- **Performance**: Efficient highlighting without impacting editor performance
+- **Scope granularity**: Detailed TextMate scopes for fine-grained theming
+
+### Technical Details
+
+#### 🎨 New TextMate Scopes
+```typescript
+// New scopes for include arguments
+'variable.parameter.include.phlow'           // Argument names (target, output)
+'keyword.operator.assignment.include.phlow' // Assignment operator (=)
+'string.unquoted.include-arg.phlow'         // Unquoted string values
+'string.quoted.single.include-arg.phlow'    // Single quoted strings
+'string.quoted.double.include-arg.phlow'    // Double quoted strings
+'constant.language.boolean.*.include-arg.phlow' // Boolean values
+'constant.numeric.*.include-arg.phlow'      // Numeric values
+'string.unquoted.filepath.phlow'            // File paths
+```
+
+#### 📝 Syntax Support
+```yaml
+# All these patterns are now properly highlighted:
+!include ./return.phlow target=route_get_authors output=simple_result
+!include ./config.phlow enabled=true port=8080 timeout=30.5
+!include ./template.phlow data='!phs payload' format="!phs main.format"
+```
+
+#### 🏗️ Grammar Architecture
+- **Modular patterns**: Separate patterns for file paths, arguments, and values
+- **Nested highlighting**: PHS expressions within quoted argument values
+- **Context-aware**: Different highlighting based on argument value context
+
+### Compatibility
+- ✅ **Backwards compatible**: Existing `!include` usage remains unchanged
+- ✅ **Theme compatible**: Works with all VS Code themes through standard scopes
+- ✅ **Performance optimized**: No impact on editor responsiveness
+
+---
+
 ## [0.0.11] - 2025-08-04
 
 ### Added

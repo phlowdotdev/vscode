@@ -1,0 +1,41 @@
+name: include-arguments-test
+version: 1.0.0
+description: Testing new !include arguments syntax highlighting
+
+steps:
+  # Basic include without arguments
+  - payload: !include ./basic.phlow
+
+  # Include with simple string arguments (unquoted)
+  - payload: !include ./return.phlow target=route_get_authors output=simple_result
+
+  # Include with quoted string arguments
+  - payload: !include ./return.phlow target="route_get_authors" output="simple_result"
+
+  # Include with single quoted arguments containing !phs
+  - payload: !include ./return.phlow target=route_get_authors output='!phs payload'
+
+  # Include with double quoted arguments containing !phs
+  - payload: !include ./return.phlow target=route_get_authors output="!phs payload.result"
+
+  # Include with boolean arguments
+  - payload: !include ./config.phlow enabled=true debug=false
+
+  # Include with numeric arguments
+  - payload: !include ./config.phlow port=8080 timeout=30.5
+
+  # Include with mixed argument types
+  - payload: !include ./complex.phlow 
+      name=my_service 
+      port=3000 
+      enabled=true 
+      config='!phs main.config' 
+      template="Hello, !phs main.name"
+
+  # Include with relative paths and complex arguments
+  - payload: !include ../shared/utils.phlow 
+      operation=transform 
+      data='!phs payload.input' 
+      options="!phs { debug: true, format: 'json' }"
+
+  - return: !phs payload
