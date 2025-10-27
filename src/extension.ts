@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as https from 'https';
 import * as yaml from 'yaml';
 
@@ -1456,7 +1455,7 @@ steps:
 						Object.entries(schema.with.properties).forEach(([key, prop]: [string, any]) => {
 							const completion = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
 							completion.detail = prop.description || 'Module property';
-							
+
 							// Build documentation with enum information
 							let documentation = `**${key}**\n\n` +
 								`Type: \`${prop.type || 'any'}\`\n\n` +
@@ -1555,14 +1554,14 @@ steps:
 
 	// Function to get enum value completions when typing property values
 	async function getEnumValueCompletions(
-		document: vscode.TextDocument, 
-		position: vscode.Position, 
-		schema: ModuleSchema, 
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		schema: ModuleSchema,
 		moduleMatch: { moduleName: string; withinWith: boolean; arrayProperty?: string }
 	): Promise<vscode.CompletionItem[]> {
 		const lineText = document.lineAt(position.line).text;
 		const colonIndex = lineText.indexOf(':');
-		
+
 		// Check if we're after a colon (typing a value)
 		if (colonIndex === -1 || position.character <= colonIndex + 1) {
 			return []; // Not typing a value
@@ -1603,7 +1602,7 @@ steps:
 		for (const enumValue of propertySchema.enum) {
 			const completion = new vscode.CompletionItem(String(enumValue), vscode.CompletionItemKind.EnumMember);
 			completion.detail = `Enum value for ${propertyName}`;
-			
+
 			// Format the insert text based on the value type
 			if (typeof enumValue === 'string') {
 				completion.insertText = `"${enumValue}"`;
@@ -1627,7 +1626,7 @@ steps:
 
 			// Set sort text to maintain enum order
 			completion.sortText = `enum_${propertySchema.enum.indexOf(enumValue).toString().padStart(3, '0')}`;
-			
+
 			completions.push(completion);
 		}
 
@@ -1652,7 +1651,7 @@ steps:
 	// Function to get completions for local .phlow modules based on existing 'with' properties
 	async function getLocalPhlowModuleCompletions(moduleName: string, currentDocumentUri: vscode.Uri): Promise<vscode.CompletionItem[]> {
 		console.log(`🔍 Looking for local .phlow module completions: ${moduleName}`);
-		
+
 		// Find the local module file
 		const moduleFileUri = await findModuleFileLocation(moduleName, currentDocumentUri);
 		if (!moduleFileUri || !moduleFileUri.fsPath.endsWith('.phlow')) {
@@ -1662,21 +1661,21 @@ steps:
 
 		try {
 			console.log(`   ✅ Found local .phlow module: ${moduleFileUri.fsPath}`);
-			
+
 			// Read the module file content
 			const moduleFileContent = await vscode.workspace.fs.readFile(moduleFileUri);
 			const moduleText = moduleFileContent.toString();
 
 			// Parse existing 'with' properties from the module file
 			const existingProperties = parseWithPropertiesFromPhlowModule(moduleText);
-			
+
 			if (existingProperties.length === 0) {
 				console.log(`   ❌ No 'with' properties found in module: ${moduleName}`);
 				return [];
 			}
 
 			console.log(`   ✅ Found ${existingProperties.length} 'with' properties in module: ${moduleName}`);
-			
+
 			// Create completion items for existing properties
 			const completions: vscode.CompletionItem[] = [];
 
@@ -1716,10 +1715,10 @@ steps:
 	}
 
 	// Parse 'with' properties from a .phlow module file content
-	function parseWithPropertiesFromPhlowModule(moduleText: string): Array<{name: string, value?: string}> {
-		const properties: Array<{name: string, value?: string}> = [];
+	function parseWithPropertiesFromPhlowModule(moduleText: string): Array<{ name: string, value?: string }> {
+		const properties: Array<{ name: string, value?: string }> = [];
 		const lines = moduleText.split('\n');
-		
+
 		let withinWith = false;
 		let withIndent = 0;
 
@@ -2037,6 +2036,29 @@ steps:
 	}
 
 	// Function to validate enum values
+
+	// Heuristic: detect inline PHS-like expressions (when `!phs` is omitted).
+	function isLikelyPhs(value: string): boolean {
+		if (!value) return false;
+		const v = value.trim();
+
+		if (v.startsWith('!phs')) return true;
+
+		// Quoted strings should not be considered PHS
+		if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return false;
+
+		const operators = ["+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "??", "?:"];
+		const reserved = ["if", "else", "for", "while", "loop", "match", "let", "const", "fn", "return", "switch", "case", "default", "try", "catch", "throw", "when", "payload", "input", "steps", "main", "setup", "envs"];
+
+		const firstWord = v.split(/\s+/)[0].split('.')[0] || '';
+		if (reserved.includes(firstWord)) return true;
+
+		if (operators.some(op => v.includes(op))) return true;
+
+		if (v.startsWith('{') || v.startsWith('[') || v.includes('(')) return true;
+
+		return false;
+	}
 	function validateEnumValue(prop: { name: string; range: vscode.Range; lineIndex: number }, propertySchema: any, lines: string[], moduleName: string): vscode.Diagnostic | null {
 		// Check if the property has enum values defined
 		if (!propertySchema || !propertySchema.enum || !Array.isArray(propertySchema.enum)) {
@@ -2059,7 +2081,7 @@ steps:
 		let actualValue: any = valueString;
 
 		// Remove quotes if present
-		if ((valueString.startsWith('"') && valueString.endsWith('"')) || 
+		if ((valueString.startsWith('"') && valueString.endsWith('"')) ||
 			(valueString.startsWith("'") && valueString.endsWith("'"))) {
 			actualValue = valueString.slice(1, -1);
 		}
@@ -2074,8 +2096,8 @@ steps:
 		else if (!isNaN(Number(valueString))) {
 			actualValue = Number(valueString);
 		}
-		// Handle PHS expressions - skip validation for dynamic values
-		else if (valueString.includes('!phs')) {
+		// Handle PHS expressions - skip validation for dynamic values (explicit or heuristic)
+		else if (valueString.includes('!phs') || isLikelyPhs(valueString)) {
 			console.log(`Skipping enum validation for PHS expression: ${valueString}`);
 			return null;
 		}
@@ -2086,7 +2108,7 @@ steps:
 
 		if (!isValidEnumValue) {
 			console.log(`Invalid enum value: ${actualValue} for property ${prop.name} in module ${moduleName}. Valid values: [${enumValues.join(', ')}]`);
-			
+
 			// Create range for the value part only (after the colon)
 			const valueStart = colonIndex + 1;
 			const valueEnd = line.length;
@@ -2123,7 +2145,7 @@ steps:
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			
+
 			// Match !include with arguments: !include ./file arg1=value1 arg2=value2
 			const includeMatch = line.match(/(!include)\s+([^\s]+)(\s+(.+))?/);
 			if (!includeMatch) {
@@ -2138,7 +2160,7 @@ steps:
 
 			// Parse arguments from the include line
 			const includeArgs = parseIncludeArguments(argumentsString, i, line);
-			
+
 			if (includeArgs.length === 0) {
 				console.log(`   No arguments to validate for ${filePath}`);
 				continue;
@@ -2166,7 +2188,7 @@ steps:
 				for (const arg of includeArgs) {
 					if (!usedArgs.includes(arg.name)) {
 						console.log(`   ⚠️  Unused argument: ${arg.name}`);
-						
+
 						const diagnostic = new vscode.Diagnostic(
 							arg.range,
 							`Argument '${arg.name}' is not used in included file '${path.basename(includeFileUri.fsPath)}'`,
@@ -2189,9 +2211,9 @@ steps:
 	}
 
 	// Parse arguments from !include line
-	function parseIncludeArguments(argumentsString: string, lineIndex: number, fullLine: string): Array<{name: string, range: vscode.Range}> {
-		const args: Array<{name: string, range: vscode.Range}> = [];
-		
+	function parseIncludeArguments(argumentsString: string, lineIndex: number, fullLine: string): Array<{ name: string, range: vscode.Range }> {
+		const args: Array<{ name: string, range: vscode.Range }> = [];
+
 		if (!argumentsString || argumentsString.trim() === '') {
 			return args;
 		}
@@ -2203,19 +2225,19 @@ steps:
 		// Match argument patterns: name=value (including quoted values)
 		const argPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:'[^']*'|"[^"]*"|[^\s]+)/g;
 		let match;
-		
+
 		while ((match = argPattern.exec(argumentsString)) !== null) {
 			const argName = match[1];
 			const argStartInArgString = match.index;
 			const argStartInFullLine = argumentsStartPos + argStartInArgString;
-			
+
 			const range = new vscode.Range(
 				lineIndex,
 				argStartInFullLine,
 				lineIndex,
 				argStartInFullLine + argName.length
 			);
-			
+
 			args.push({
 				name: argName,
 				range: range
@@ -2228,10 +2250,10 @@ steps:
 	// Find !arg usages in file content
 	function findArgUsagesInFile(fileContent: string): string[] {
 		const usedArgs: string[] = [];
-		
+
 		// Match !arg argument_name patterns
 		const argMatches = fileContent.matchAll(/!arg\s+([a-zA-Z_][a-zA-Z0-9_]*)/g);
-		
+
 		for (const match of argMatches) {
 			const argName = match[1];
 			if (!usedArgs.includes(argName)) {
@@ -2592,15 +2614,28 @@ steps:
 				const lineText = document.lineAt(position).text;
 				const linePrefix = lineText.substring(0, position.character);
 
-				// Check if we're in a PHS context (!phs)
+				// Check if we're in a PHS context (!phs) or the value looks like an inline PHS expression
 				const phsMatch = linePrefix.match(/!phs\s+/);
-				if (!phsMatch) {
-					return undefined;
+				let phsStartIndex: number | null = null;
+				let phsPrefix = '';
+				if (phsMatch) {
+					phsStartIndex = phsMatch.index! + phsMatch[0].length;
+					phsPrefix = linePrefix.substring(phsStartIndex);
+				} else {
+					// Try to detect implicit PHS: if typing a value after a colon and it looks like PHS
+					const colonIndex = linePrefix.indexOf(':');
+					if (colonIndex !== -1) {
+						const valuePart = linePrefix.substring(colonIndex + 1).trim();
+						if (isLikelyPhs(valuePart)) {
+							phsStartIndex = linePrefix.length - valuePart.length;
+							phsPrefix = linePrefix.substring(phsStartIndex);
+						}
+					}
 				}
 
-				// Get the PHS part after !phs
-				const phsStartIndex = phsMatch.index! + phsMatch[0].length;
-				const phsPrefix = linePrefix.substring(phsStartIndex);
+				if (phsStartIndex === null) {
+					return undefined;
+				}
 
 				// PHS completions
 				const completions: vscode.CompletionItem[] = [];
