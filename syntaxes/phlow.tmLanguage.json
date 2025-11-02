@@ -1,445 +1,343 @@
 {
-    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "scopeName": "source.phlow",
     "name": "Phlow",
-    "scopeName": "source.yaml.phlow",
+    "fileTypes": [
+        "phlow"
+    ],
     "patterns": [
         {
-            "include": "#phlow-directives"
+            "include": "#comments"
         },
         {
-            "include": "#phlow-keywords"
+            "include": "#directives"
         },
         {
-            "include": "#phlow-modules"
+            "include": "#modules"
         },
         {
-            "include": "source.yaml"
+            "include": "#phs-tag"
+        },
+        {
+            "include": "#phs-numeric-values"
+        },
+        {
+            "include": "#phs-values"
+        },
+        {
+            "include": "#special-keys"
+        },
+        {
+            "include": "#constants-values"
+        },
+        {
+            "include": "#keys"
         }
     ],
     "repository": {
-        "phlow-directives": {
+        "comments": {
             "patterns": [
                 {
-                    "name": "meta.directive.phs.block.phlow",
-                    "begin": "(!phs)\\s+(`)",
+                    "name": "comment.line.number-sign.phlow",
+                    "match": "#.*$"
+                }
+            ]
+        },
+        "phs-values": {
+            "patterns": [
+                {
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)([A-Za-z0-9_\\-\\.]+)(\\s*:\\s*)(?!$)(?!\\s*[\\[\\{\\|>])",
                     "beginCaptures": {
                         "1": {
-                            "name": "keyword.directive.phs.phlow"
+                            "name": "punctuation.whitespace.leading.phlow"
                         },
                         "2": {
-                            "name": "punctuation.definition.string.template.begin.phs"
-                        }
-                    },
-                    "end": "`",
-                    "endCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.string.template.end.phs"
-                        }
-                    },
-                    "patterns": [
-                        {
-                            "include": "#phs-inline-content"
-                        }
-                    ]
-                },
-                {
-                    "name": "meta.directive.phs.multiline.phlow",
-                    "begin": "(!phs)\\s*(\\|)",
-                    "beginCaptures": {
-                        "1": {
-                            "name": "keyword.directive.phs.phlow"
+                            "name": "entity.name.tag.phlow"
                         },
-                        "2": {
-                            "name": "punctuation.definition.string.multiline.yaml"
-                        }
-                    },
-                    "end": "^(?!\\s+)",
-                    "patterns": [
-                        {
-                            "include": "#phs-inline-content"
-                        }
-                    ]
-                },
-                {
-                    "name": "meta.directive.phs.inline.phlow",
-                    "begin": "(!phs)\\s+(?!`|\\|)",
-                    "beginCaptures": {
-                        "1": {
-                            "name": "keyword.directive.phs.phlow"
+                        "3": {
+                            "name": "punctuation.separator.key-value.phlow"
                         }
                     },
                     "end": "$",
+                    "name": "meta.mapping.value.phlow",
                     "patterns": [
                         {
-                            "include": "#phs-inline-content"
+                            "include": "source.phs"
+                        }
+                    ]
+                }
+            ]
+        },
+        "phs-tag": {
+            "patterns": [
+                {
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)([A-Za-z0-9_\\-\\.]+)(\\s*:\\s*)(!phs\\b\\s*)(?!\\s*[\\[\\{\\|>])",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.phlow"
+                        },
+                        "3": {
+                            "name": "punctuation.separator.key-value.phlow"
+                        },
+                        "4": {
+                            "name": "keyword.tag.phs"
+                        }
+                    },
+                    "end": "$",
+                    "name": "meta.mapping.value.phs-tag.inline",
+                    "patterns": [
+                        {
+                            "include": "source.phs"
                         }
                     ]
                 },
                 {
-                    "name": "meta.directive.include.phlow",
-                    "begin": "(!include)\\s+",
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)([A-Za-z0-9_\\-\\.]+)(\\s*:\\s*)(!phs\\b\\s*\\$\\{)",
                     "beginCaptures": {
                         "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.phlow"
+                        },
+                        "3": {
+                            "name": "punctuation.separator.key-value.phlow"
+                        },
+                        "4": {
+                            "name": "keyword.tag.phs"
+                        }
+                    },
+                    "end": "(?m)^\\s*\\}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.section.block.end.phs"
+                        }
+                    },
+                    "name": "meta.mapping.value.phs-tag.block",
+                    "patterns": [
+                        {
+                            "include": "source.phs"
+                        }
+                    ]
+                }
+            ]
+        },
+        "phs-numeric-values": {
+            "patterns": [
+                {
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)([A-Za-z0-9_\\-\\.]+)(\\s*:\\s*)(?=\\s*\\d)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.phlow"
+                        },
+                        "3": {
+                            "name": "punctuation.separator.key-value.phlow"
+                        }
+                    },
+                    "end": "$",
+                    "name": "meta.mapping.value.phlow.numeric",
+                    "patterns": [
+                        {
+                            "include": "source.phs"
+                        }
+                    ]
+                }
+            ]
+        },
+        "directives": {
+            "patterns": [
+                {
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)(!include)\\b",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
                             "name": "keyword.directive.include.phlow"
                         }
                     },
-                    "end": "(?=\\n|$)",
+                    "end": "$",
+                    "name": "meta.directive.include.phlow",
                     "patterns": [
                         {
-                            "include": "#include-file-path"
-                        },
-                        {
-                            "include": "#include-arguments"
+                            "include": "#directive-values"
                         }
                     ]
                 },
                 {
-                    "name": "keyword.directive.import.phlow",
-                    "match": "!import\\b",
-                    "captures": {
-                        "0": {
-                            "name": "keyword.directive.phlow"
-                        }
-                    }
-                }
-            ]
-        },
-        "phlow-keywords": {
-            "patterns": [
-                {
-                    "name": "keyword.control.phlow",
-                    "match": "\\b(main|modules|steps|tests|describe|assert|assert_eq|then|else|return|payload|use|to|label|id|with|input|output):\\s*",
-                    "captures": {
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)(!import)\\b",
+                    "beginCaptures": {
                         "1": {
-                            "name": "entity.name.tag.yaml"
-                        }
-                    }
-                }
-            ]
-        },
-        "phlow-modules": {
-            "patterns": [
-                {
-                    "name": "string.unquoted.phlow-module.yaml",
-                    "match": "\\b(cli|postgres|log|http_server|producer|consumer|amqp)\\b"
-                }
-            ]
-        },
-        "phs-inline-content": {
-            "patterns": [
-                {
-                    "include": "#phs-comments"
-                },
-                {
-                    "include": "#phs-keywords"
-                },
-                {
-                    "include": "#phs-operators"
-                },
-                {
-                    "include": "#phs-functions"
-                },
-                {
-                    "include": "#phs-strings"
-                },
-                {
-                    "include": "#phs-numbers"
-                },
-                {
-                    "include": "#phs-variables"
-                },
-                {
-                    "include": "#phs-phlow-variables"
-                }
-            ]
-        },
-        "phs-comments": {
-            "patterns": [
-                {
-                    "name": "comment.line.double-slash.phs",
-                    "match": "//.*$"
-                },
-                {
-                    "name": "comment.block.phs",
-                    "begin": "/\\*",
-                    "end": "\\*/"
-                }
-            ]
-        },
-        "phs-keywords": {
-            "patterns": [
-                {
-                    "name": "keyword.control.phs",
-                    "match": "\\b(if|else|while|for|loop|break|continue|return|fn|let|const|true|false|null)\\b"
-                },
-                {
-                    "name": "keyword.operator.phs",
-                    "match": "\\b(and|or|not|in)\\b"
-                },
-                {
-                    "name": "storage.type.phs",
-                    "match": "\\b(int|float|bool|char|string|array|object|map)\\b"
-                }
-            ]
-        },
-        "phs-operators": {
-            "patterns": [
-                {
-                    "name": "keyword.operator.assignment.phs",
-                    "match": "(=|\\+=|-=|\\*=|/=|%=|\\|=|&=|\\^=|<<=|>>=)"
-                },
-                {
-                    "name": "keyword.operator.comparison.phs",
-                    "match": "(==|!=|<=|>=|<|>)"
-                },
-                {
-                    "name": "keyword.operator.arithmetic.phs",
-                    "match": "(\\+|\\-|\\*|/|%|\\*\\*)"
-                },
-                {
-                    "name": "keyword.operator.logical.phs",
-                    "match": "(&&|\\|\\||!)"
-                },
-                {
-                    "name": "keyword.operator.bitwise.phs",
-                    "match": "(&|\\||\\^|~|<<|>>)"
-                },
-                {
-                    "name": "keyword.operator.other.phs",
-                    "match": "(\\?|:|\\.|,|;)"
-                }
-            ]
-        },
-        "phs-functions": {
-            "patterns": [
-                {
-                    "name": "entity.name.function.phs",
-                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()"
-                },
-                {
-                    "name": "support.function.builtin.phs",
-                    "match": "\\b(print|debug|type_of|len|is_empty|contains|push|pop|shift|unshift|clear|remove|insert|split|join|pad|trim|to_upper|to_lower|to_string|to_int|to_float|parse_int|parse_float|timestamp)\\b"
-                }
-            ]
-        },
-        "phs-strings": {
-            "patterns": [
-                {
-                    "name": "string.quoted.double.phs",
-                    "begin": "\"",
-                    "end": "\"",
-                    "patterns": [
-                        {
-                            "name": "constant.character.escape.phs",
-                            "match": "\\\\[\"'\\\\nrtbfav]"
-                        },
-                        {
-                            "name": "variable.other.interpolation.phs",
-                            "match": "\\$\\{[^}]*\\}"
-                        }
-                    ]
-                },
-                {
-                    "name": "string.quoted.single.phs",
-                    "begin": "'",
-                    "end": "'",
-                    "patterns": [
-                        {
-                            "name": "constant.character.escape.phs",
-                            "match": "\\\\[\"'\\\\nrtbfav]"
-                        }
-                    ]
-                },
-                {
-                    "name": "string.template.phs",
-                    "begin": "`",
-                    "end": "`",
-                    "patterns": [
-                        {
-                            "name": "constant.character.escape.phs",
-                            "match": "\\\\[`\\\\nrtbfav]"
-                        },
-                        {
-                            "name": "variable.other.interpolation.phs",
-                            "match": "\\$\\{[^}]*\\}"
-                        }
-                    ]
-                }
-            ]
-        },
-        "phs-numbers": {
-            "patterns": [
-                {
-                    "name": "constant.numeric.hex.phs",
-                    "match": "\\b0[xX][0-9a-fA-F]+\\b"
-                },
-                {
-                    "name": "constant.numeric.binary.phs",
-                    "match": "\\b0[bB][01]+\\b"
-                },
-                {
-                    "name": "constant.numeric.octal.phs",
-                    "match": "\\b0[oO][0-7]+\\b"
-                },
-                {
-                    "name": "constant.numeric.float.phs",
-                    "match": "\\b[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b"
-                },
-                {
-                    "name": "constant.numeric.integer.phs",
-                    "match": "\\b[0-9]+\\b"
-                }
-            ]
-        },
-        "phs-variables": {
-            "patterns": [
-                {
-                    "name": "variable.other.phs",
-                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
-                }
-            ]
-        },
-        "phs-phlow-variables": {
-            "patterns": [
-                {
-                    "name": "variable.other.phlow.phs",
-                    "match": "\\b(main|payload|steps|envs)\\b"
-                },
-                {
-                    "name": "support.function.phlow.phs",
-                    "match": "\\b(log|query|producer|consumer)\\b"
-                }
-            ]
-        },
-        "include-file-path": {
-            "patterns": [
-                {
-                    "name": "string.unquoted.filepath.include.phlow",
-                    "match": "([^\\s=]+)(?=\\s|$)",
-                    "captures": {
-                        "1": {
-                            "name": "string.unquoted.filepath.phlow"
-                        }
-                    }
-                }
-            ]
-        },
-        "include-arguments": {
-            "patterns": [
-                {
-                    "name": "meta.argument.include.phlow",
-                    "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*('(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"|[^\\s]+)",
-                    "captures": {
-                        "1": {
-                            "name": "variable.parameter.include.phlow"
+                            "name": "punctuation.whitespace.leading.phlow"
                         },
                         "2": {
-                            "name": "keyword.operator.assignment.include.phlow"
+                            "name": "keyword.directive.import.phlow"
+                        }
+                    },
+                    "end": "$",
+                    "name": "meta.directive.import.phlow",
+                    "patterns": [
+                        {
+                            "include": "#directive-values"
+                        }
+                    ]
+                },
+                {
+                    "begin": "(?m)^(\\s*(?:-\\s*)?)(!arg)\\b",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "keyword.directive.arg.phlow"
+                        }
+                    },
+                    "end": "$",
+                    "name": "meta.directive.arg.phlow",
+                    "patterns": [
+                        {
+                            "include": "#directive-values"
+                        }
+                    ]
+                }
+            ]
+        },
+        "modules": {
+            "patterns": [
+                {
+                    "match": "(?m)^(\\s*(?:-\\s*)?)(module)(\\s*:\\s*)(\"[^\"]+\"|'[^']+'|[A-Za-z0-9_\\.\\/\\\\\\-]+)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "keyword.directive.module.phlow"
                         },
                         "3": {
-                            "patterns": [
-                                {
-                                    "include": "#include-argument-values"
-                                }
-                            ]
+                            "name": "punctuation.separator.key-value.phlow"
+                        },
+                        "4": {
+                            "name": "entity.name.namespace.phlow"
+                        }
+                    },
+                    "name": "meta.mapping.module.phlow"
+                }
+            ]
+        },
+        "constants-values": {
+            "patterns": [
+                {
+                    "match": "(?m)^(\\s*(?:-\\s*)?)([a-zA-Z0-9_\\-\\.]+)(\\s*:\\s*)(\\b(?:main|modules|steps|envs|setup|input|args)\\b)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "entity.name.tag.phlow"
+                        },
+                        "3": {
+                            "name": "punctuation.separator.key-value.phlow"
+                        },
+                        "4": {
+                            "name": "constant.language.phlow"
+                        }
+                    }
+                },
+                {
+                    "match": "(\\.\\.\\.)(\\b(?:main|modules|steps|envs|setup|input|args)\\b)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.separator.spread.phlow"
+                        },
+                        "2": {
+                            "name": "constant.language.phlow"
+                        }
+                    }
+                },
+                {
+                    "match": "(?m)^(\\s*-\\s*)(\\b(?:main|modules|steps|envs|setup|input|args)\\b)(?=\\s*$|\\s|,|\\])",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "constant.language.phlow"
+                        }
+                    }
+                },
+                {
+                    "match": "\\b(?:main|modules|steps|envs|setup|input|args)\\b(?=\\[|\\.)",
+                    "name": "constant.language.phlow"
+                }
+            ]
+        },
+        "directive-values": {
+            "patterns": [
+                {
+                    "match": "(?x)([A-Za-z0-9_\\-\\.]+)(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s]+)",
+                    "captures": {
+                        "1": {
+                            "name": "variable.parameter.phlow"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.key-value.phlow"
+                        },
+                        "3": {
+                            "name": "string.unquoted.or.quoted.phlow"
+                        }
+                    }
+                },
+                {
+                    "match": "\"[^\"]+\"",
+                    "name": "string.quoted.double.phlow"
+                },
+                {
+                    "match": "'[^']+'",
+                    "name": "string.quoted.single.phlow"
+                },
+                {
+                    "match": "[^\\s]+",
+                    "name": "string.unquoted.path.phlow"
+                }
+            ]
+        },
+        "special-keys": {
+            "patterns": [
+                {
+                    "match": "(?m)^(\\s*(?:-\\s*)?)\\b(then|else|return|id|assert|with|payload|to|use|label|input)\\b(?=\\s*:)",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.whitespace.leading.phlow"
+                        },
+                        "2": {
+                            "name": "keyword.control.phlow"
                         }
                     }
                 }
             ]
         },
-        "include-argument-values": {
+        "keys": {
             "patterns": [
                 {
-                    "name": "string.quoted.single.include-arg.phlow",
-                    "begin": "'",
-                    "end": "'",
-                    "beginCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.string.begin.phlow"
+                    "match": "(?m)^(\\s*)(?:-\\s*)([a-zA-Z0-9_\\-\\.]+)(?=\\s*:)",
+                    "captures": {
+                        "2": {
+                            "name": "entity.name.tag.phlow"
                         }
-                    },
-                    "endCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.string.end.phlow"
-                        }
-                    },
-                    "patterns": [
-                        {
-                            "name": "meta.directive.phs.inline.include-arg.phlow",
-                            "begin": "(!phs)\\s+",
-                            "beginCaptures": {
-                                "1": {
-                                    "name": "keyword.directive.phs.phlow"
-                                }
-                            },
-                            "end": "(?=')",
-                            "patterns": [
-                                {
-                                    "include": "#phs-inline-content"
-                                }
-                            ]
-                        },
-                        {
-                            "name": "string.quoted.content.include-arg.phlow",
-                            "match": "[^']*"
-                        }
-                    ]
+                    }
                 },
                 {
-                    "name": "string.quoted.double.include-arg.phlow",
-                    "begin": "\"",
-                    "end": "\"",
-                    "beginCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.string.begin.phlow"
+                    "match": "(?m)^(\\s*)([a-zA-Z0-9_\\-\\.]+)(?=\\s*:)",
+                    "captures": {
+                        "2": {
+                            "name": "entity.name.tag.phlow"
                         }
-                    },
-                    "endCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.string.end.phlow"
-                        }
-                    },
-                    "patterns": [
-                        {
-                            "name": "meta.directive.phs.inline.include-arg.phlow",
-                            "begin": "(!phs)\\s+",
-                            "beginCaptures": {
-                                "1": {
-                                    "name": "keyword.directive.phs.phlow"
-                                }
-                            },
-                            "end": "(?=\")",
-                            "patterns": [
-                                {
-                                    "include": "#phs-inline-content"
-                                }
-                            ]
-                        },
-                        {
-                            "name": "string.quoted.content.include-arg.phlow",
-                            "match": "[^\"]*"
-                        }
-                    ]
-                },
-                {
-                    "name": "constant.language.boolean.true.include-arg.phlow",
-                    "match": "\\btrue\\b"
-                },
-                {
-                    "name": "constant.language.boolean.false.include-arg.phlow",
-                    "match": "\\bfalse\\b"
-                },
-                {
-                    "name": "constant.numeric.float.include-arg.phlow",
-                    "match": "\\b[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b"
-                },
-                {
-                    "name": "constant.numeric.integer.include-arg.phlow",
-                    "match": "\\b[0-9]+\\b"
-                },
-                {
-                    "name": "string.unquoted.include-arg.phlow",
-                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+                    }
                 }
             ]
         }

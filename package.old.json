@@ -1,0 +1,257 @@
+{
+  "name": "phlow",
+  "displayName": "Phlow",
+  "description": "Language support for Phlow - Low Code Rust runtime for modular backends",
+  "version": "0.1.0",
+  "repository": "https://github.com/phlowdotdev/vscode",
+  "publisher": "phlow",
+  "icon": "icons/phlow.png",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "phlow",
+    "yaml",
+    "workphlow",
+    "rust",
+    "backend",
+    "low-code"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configurationDefaults": {
+      "[phlow]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.indentSize": 2,
+        "editor.autoIndent": "full",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.trimAutoWhitespace": true,
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "files.trimFinalNewlines": true
+      },
+      "[phs]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "editor.indentSize": 4,
+        "editor.autoIndent": "full",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.trimAutoWhitespace": true,
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "files.trimFinalNewlines": true
+      }
+    },
+    "languages": [
+      {
+        "id": "phlow",
+        "aliases": [
+          "Phlow",
+          "phlow"
+        ],
+        "extensions": [
+          ".phlow"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/phlow.png",
+          "dark": "./icons/phlow.png"
+        }
+      },
+      {
+        "id": "phs",
+        "aliases": [
+          "Phlow Script",
+          "PHS"
+        ],
+        "extensions": [
+          ".phs"
+        ],
+        "configuration": "./phs-configuration.json",
+        "icon": {
+          "light": "./icons/phlow.png",
+          "dark": "./icons/phlow.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "phlow",
+        "scopeName": "source.yaml.phlow",
+        "path": "./syntaxes/phlow.tmLanguage.json"
+      },
+      {
+        "language": "phs",
+        "scopeName": "source.phs",
+        "path": "./syntaxes/phs.tmLanguage.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "*.phlow",
+        "url": "./schemas/phlow-schema.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "phlow",
+        "path": "./snippets/phlow.json"
+      },
+      {
+        "language": "yaml",
+        "path": "./snippets/phlow-yaml.json"
+      },
+      {
+        "language": "phs",
+        "path": "./snippets/phs.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "phlow.runPhlow",
+        "title": "Run Phlow Phlow",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.runPhlowTests",
+        "title": "Run Phlow Tests",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.refreshTests",
+        "title": "Refresh Tests",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.debugTests",
+        "title": "Debug Tests (Current File)",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.validatePhlow",
+        "title": "Validate Phlow Phlow",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.createNewPhlow",
+        "title": "Create New Phlow Phlow",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.testModuleSchema",
+        "title": "Test Module Schema (Debug)",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.clearModuleCache",
+        "title": "Clear Module Cache",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.formatDocument",
+        "title": "Format Document (Phlow Style)",
+        "category": "Phlow"
+      },
+      {
+        "command": "phs.runScript",
+        "title": "Run PHS Script",
+        "category": "PHS"
+      },
+      {
+        "command": "phlow.reloadExtension",
+        "title": "Reload Extension",
+        "category": "Phlow"
+      },
+      {
+        "command": "phlow.updateImportReferences",
+        "title": "Check Import References",
+        "category": "Phlow"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.runPhlow",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.runPhlowTests",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phs",
+          "command": "phs.runScript",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.runPhlow",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.runPhlowTests",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.validatePhlow",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .phlow",
+          "command": "phlow.formatDocument",
+          "group": "formatting"
+        },
+        {
+          "when": "resourceExtname == .phs",
+          "command": "phlow.formatDocument",
+          "group": "formatting"
+        },
+        {
+          "when": "resourceExtname == .phs",
+          "command": "phs.runScript",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.102.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.2.0",
+    "@typescript-eslint/eslint-plugin": "8.39.0",
+    "@typescript-eslint/parser": "8.39.0",
+    "eslint": "9.32.0",
+    "typescript": "5.9.2",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  },
+  "dependencies": {
+    "yaml": "^2.3.4"
+  }
+}
