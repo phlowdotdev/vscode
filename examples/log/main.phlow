@@ -8,7 +8,7 @@ modules:
       capacity: 1000
 steps:
   - payload: !import handler.phs
-  !include steps.phlow
+  !include steps
   - assert: when payload == 2 ? true : false
     label: Check if payload equals 2
     then:

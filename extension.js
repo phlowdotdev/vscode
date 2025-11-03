@@ -181,7 +181,8 @@ function activate(context) {
         if (!doc) return;
         const fileName = doc.fileName || '';
         if (fileName.endsWith('.phlow')) {
-            vscode.window.showInformationMessage('Olá — Phlow: hello world! (arquivo .phlow aberto)');
+            const version = context?.extension?.packageJSON?.version || 'unknown';
+            vscode.window.showInformationMessage(`Hello phlow! v${version}`);
         }
     }
 
@@ -674,8 +675,9 @@ function activate(context) {
 
                 // check if this word is preceded by !include or !import in the same line
                 const before = line.slice(0, wordRange.start.character);
-                const includeMatch = before.match(/!include\s*$/);
-                const importMatch = before.match(/!import\s*$/);
+                // support both `!include path` and `!include: path`
+                const includeMatch = before.match(/!include\s*:?[\t ]*$/);
+                const importMatch = before.match(/!import\s*:?[\t ]*$/);
                 // also support patterns like 'use: handler.phs' or 'module: handler.phs' where the value is the path
                 // capture the key so we can ignore `id` and apply special module resolution
                 const keyMatch = before.match(/(?:\b(use|module|id)\b)\s*:\s*$/i);
@@ -701,6 +703,15 @@ function activate(context) {
                     } catch (e) {
                         analyzerOutput.appendLine(`module resolve error: ${e.message}`);
                     }
+                }
+
+                // Prefer appending .phlow when no extension is declared for include/import/module targets
+                // Do not change 'use:' targets (which commonly point to .phs handlers)
+                const keyType = keyMatch && keyMatch[1] ? keyMatch[1].toLowerCase() : null;
+                const shouldPreferPhlow = Boolean(includeMatch || importMatch || keyType === 'module');
+                if (shouldPreferPhlow && path.extname(targetPath) === '') {
+                    // append .phlow even if the file does not exist; VS Code will still navigate/open
+                    targetPath = targetPath + '.phlow';
                 }
 
                 const targetUri = vscode.Uri.file(targetPath);
@@ -742,6 +753,10 @@ function activate(context) {
                             const base = path.dirname(document.uri.fsPath || '');
                             targetPath = path.resolve(base, targetPath);
                         }
+                        // prefer .phlow when no extension declared
+                        if (path.extname(targetPath) === '') {
+                            targetPath = targetPath + '.phlow';
+                        }
                         const targetUri = vscode.Uri.file(targetPath);
                         const range = new vscode.Range(new vscode.Position(i, start), new vscode.Position(i, end));
                         links.push(new vscode.DocumentLink(range, targetUri));
@@ -756,6 +771,10 @@ function activate(context) {
                         if (!path.isAbsolute(targetPath)) {
                             const base = path.dirname(document.uri.fsPath || '');
                             targetPath = path.resolve(base, targetPath);
+                        }
+                        // prefer .phlow when no extension declared
+                        if (path.extname(targetPath) === '') {
+                            targetPath = targetPath + '.phlow';
                         }
                         const targetUri = vscode.Uri.file(targetPath);
                         const range = new vscode.Range(new vscode.Position(i, start), new vscode.Position(i, end));
@@ -782,11 +801,53 @@ function activate(context) {
                                     targetPath = path.resolve(base, targetPath);
                                 }
                             }
+                            // prefer .phlow when no extension declared
+                            if (path.extname(targetPath) === '') {
+                                targetPath = targetPath + '.phlow';
+                            }
                         } else {
                             if (!path.isAbsolute(targetPath)) {
                                 const base = path.dirname(document.uri.fsPath || '');
                                 targetPath = path.resolve(base, targetPath);
                             }
+                            // do NOT auto-append .phlow for 'use:' (likely .phs)
+                        }
+                        const targetUri = vscode.Uri.file(targetPath);
+                        const range = new vscode.Range(new vscode.Position(i, start), new vscode.Position(i, end));
+                        links.push(new vscode.DocumentLink(range, targetUri));
+                    }
+
+                    // Also support forms with colon immediately after directive: !include: path, !import: path
+                    const includeColonRegex = /!include\s*:\s*(?:"([^"]+)"|'([^']+)'|([^\s]+))/g;
+                    while ((m = includeColonRegex.exec(line)) !== null) {
+                        const raw = m[1] || m[2] || m[3];
+                        const start = m.index + m[0].lastIndexOf(raw);
+                        const end = start + raw.length;
+                        let targetPath = raw;
+                        if (!path.isAbsolute(targetPath)) {
+                            const base = path.dirname(document.uri.fsPath || '');
+                            targetPath = path.resolve(base, targetPath);
+                        }
+                        if (path.extname(targetPath) === '') {
+                            targetPath = targetPath + '.phlow';
+                        }
+                        const targetUri = vscode.Uri.file(targetPath);
+                        const range = new vscode.Range(new vscode.Position(i, start), new vscode.Position(i, end));
+                        links.push(new vscode.DocumentLink(range, targetUri));
+                    }
+
+                    const importColonRegex = /!import\s*:\s*(?:"([^"]+)"|'([^']+)'|([^\s]+))/g;
+                    while ((m = importColonRegex.exec(line)) !== null) {
+                        const raw = m[1] || m[2] || m[3];
+                        const start = m.index + m[0].lastIndexOf(raw);
+                        const end = start + raw.length;
+                        let targetPath = raw;
+                        if (!path.isAbsolute(targetPath)) {
+                            const base = path.dirname(document.uri.fsPath || '');
+                            targetPath = path.resolve(base, targetPath);
+                        }
+                        if (path.extname(targetPath) === '') {
+                            targetPath = targetPath + '.phlow';
                         }
                         const targetUri = vscode.Uri.file(targetPath);
                         const range = new vscode.Range(new vscode.Position(i, start), new vscode.Position(i, end));
